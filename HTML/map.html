@@ -1,0 +1,136 @@
+
+<!<!DOCTYPE html>
+<html>
+<head>
+	<title>FOV generator</title>
+</head>
+<body>
+<script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.5.1/mapbox-gl-geocoder.min.js"></script>
+<script src= "https://api.mapbox.com/mapbox-gl-js/v1.12.0/mapbox-gl.js" ></script>
+<script src="https://api.tiles.mapbox.com/mapbox.js/plugins/turf/v3.0.11/turf.min.js" ></script>
+<link
+rel="stylesheet"
+href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.5.1/mapbox-gl-geocoder.css"
+type="text/css"
+/>
+<style>
+	
+	body { margin: 0; padding: 0; }
+	#map { position: absolute; top: 0; bottom: 0; width: 100%; }
+
+   
+	
+</style>
+
+
+
+<div id="map"></div>
+
+
+<script>
+	
+var currentMarkers=[];
+mapboxgl.accessToken = 'pk.eyJ1IjoibW9ueWtpbmkxMTEiLCJhIjoiY2tmeWE2ZmZzMjMzczJwcGRreGt5ZHpzcSJ9.2fx-rNkpReTIWWzjGTJo_g';
+    var map = new mapboxgl.Map({
+        container: 'map',
+        style:        'mapbox://styles/monykini111/ckfzugdmf1ftk1alpt0whio6d',
+        center: [73.0501, 33.7077],
+        zoom: 17,
+        pitch: 45,
+        bearing: -17.6,
+        container: 'map',
+        antialias: true
+    });
+
+map.on('click', function(e){
+  if (currentMarkers!==null) {
+    for (var i = currentMarkers.length - 1; i >= 0; i--) {
+      currentMarkers[i].remove();
+    }
+}
+    var marker = new mapboxgl.Marker()
+.setLngLat(e.lngLat)
+.addTo(map);
+ currentMarkers.push(marker);
+
+  var http = new XMLHttpRequest();
+var url = 'usama_is_not_gay_might_be.py';
+var params = 'latLng=' + e.lngLat;
+http.open('POST', url, true);
+http.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+http.onreadystatechange = function() {
+    if(http.readyState == 4 && http.status == 200) {
+        alert(http.responseText);
+    }
+}
+http.send(params);
+
+
+});
+
+ map.addControl(
+        new MapboxGeocoder({
+            accessToken: mapboxgl.accessToken,
+            mapboxgl: mapboxgl
+        })
+    );
+    map.on('load', function () {
+        // Insert the layer beneath any symbol layer.
+        var layers = map.getStyle().layers;
+
+        var labelLayerId;
+        for (var i = 0; i < layers.length; i++) {
+            if (layers[i].type === 'symbol' && layers[i].layout['text-field']) {
+                labelLayerId = layers[i].id;
+                break;
+            }
+        }
+
+        map.addLayer(
+            {
+                'id': '3d-buildings',
+                'source': 'composite',
+                'source-layer': 'building',
+                'filter': ['==', 'extrude', 'true'],
+                'type': 'fill-extrusion',
+                'minzoom': 15,
+                'paint': {
+                    'fill-extrusion-color': '#aaa',
+
+                    // use an 'interpolate' expression to add a smooth transition effect to the
+                    // buildings as the user zooms in
+                    'fill-extrusion-height': [
+                        'interpolate',
+                        ['linear'],
+                        ['zoom'],
+                        15,
+                        0,
+                        15.05,
+                        ['get', 'height']
+                    ],
+                    'fill-extrusion-base': [
+                        'interpolate',
+                        ['linear'],
+                        ['zoom'],
+                        15,
+                        0,
+                        15.05,
+                        ['get', 'min_height']
+                    ],
+                    'fill-extrusion-opacity': 0.6
+                }
+            },
+            labelLayerId
+        );
+    });
+
+
+</script>
+
+</body>
+</html>
+
+
+
+
+
