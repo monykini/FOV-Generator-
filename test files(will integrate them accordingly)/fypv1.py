@@ -16,14 +16,19 @@ import math
 import requests
 import json
 from io import BytesIO
+import threading
+from statistics import stdev 
+#Do not apply an operation to the result of another operation
+#Write a new operation that combines the two operations.
 
 
 class area_calculate():
-        def __init__(self, lat, lon):
+        def __init__(self, lat, lon , area):
                 self.lat = 33.64013671875
                 self.lon = 73.0455032
                 self.hexagon_centers=[]
                 self.area_data=[]
+                self.area = area
 
         def ClipByRange(self,n, range):
                 return n % range
@@ -45,7 +50,7 @@ class area_calculate():
                 return latitude,longitude
 
 
-        def get_area_data(self):
+        def get_square(self):
                 transformer = Transformer.from_crs("epsg:4326", "epsg:3857")
 
                 # lon first lat last
@@ -53,16 +58,18 @@ class area_calculate():
                 point = shapely.geometry.Point(x2,y2)
                 
                 #anti-clock wise top - right corner
-                og_square = point.buffer(500, cap_style=3)
+                og_square = point.buffer(self.area, cap_style=3)
+                return og_square
+
+
+        def get_area_data(self):
+                og_square = self.get_square()
                 square = list(og_square.exterior.coords)
-                print(square)
                 transformer = Transformer.from_crs("epsg:3857","epsg:4326")
                 square_4326 = []
                 for p in range(len(square)-1):
                         x,y = transformer.transform(square[p][0], square[p][1])
                         square_4326.append([x,y])
-                print(square_4326)
-
                 tiles = []
                 for p in square_4326:
                         mercent = mercantile.tile(p[1],p[0],15)
@@ -70,10 +77,10 @@ class area_calculate():
                         tiles.append([mercent.x,mercent.y])
 
                 #-----y-axis is first------------------------
-                print(tiles,"tiles")
+                # print(tiles,"tiles")
                 total_x_axis_tiles = tiles[1][1]-tiles[0][1]+1
                 total_y_axis_tiles = tiles[1][0]-tiles[2][0]+1
-                print(total_x_axis_tiles,total_y_axis_tiles)
+                # print(total_x_axis_tiles,total_y_axis_tiles)
                 #------here the corner are reset to proper form------
                 top_left_tile = tiles[0]
                 total_tiles_matrix=[]
@@ -84,10 +91,9 @@ class area_calculate():
                         total_tiles_matrix.append(temp)
 
                 total_tiles_matrix = total_tiles_matrix[::-1]
-                print(np.array(total_tiles_matrix))
-                # tiles_mesh = np.zeros()
+                #print(np.array(total_tiles_matrix))
                 filled_tiles_matrix = []
-                # f = open("myfile1.txt", "w")
+                f = open("myfile1.txt", "w")
 
                 for t in total_tiles_matrix:
                         temp=[]
@@ -110,8 +116,8 @@ class area_calculate():
                                 for i in range(256):
                                         temp2=[]
                                         for j in range(256):
-                                                x_pixal_world = (i+(256*total_tiles_matrix[x][y][0]))-256
-                                                y_pixal_world = (j+(256*total_tiles_matrix[x][y][1]))-256
+                                                x_pixal_world = (i+(256*total_tiles_matrix[x][y][0]))
+                                                y_pixal_world = (j+(256*total_tiles_matrix[x][y][1]))
                                                 x_pixal=i+(x*256)
                                                 y_pixal=j+(y*256)
                                                 lat,lon =  self.PixelXYToLatLongOSM(x_pixal_world,y_pixal_world,15)
@@ -121,25 +127,13 @@ class area_calculate():
                                                 data={"world_xy_pixal":[x_pixal_world,y_pixal_world],'lat/lon(inorder)':[lat,lon],"pixal_x_y":[x_pixal,y_pixal],'color':color , 'Mercator':[maerc_lat,maerc_lon] , 'elevation(meter)':height}
                                                 flat_array_cords_tiles_matrix.append(data)
                                                 temp2.append({'lat':lat,'lon':lon,'Mercator':[maerc_lat,maerc_lon] , 'color':color ,'world_pixal_X':x_pixal_world,'world_pixal_Y':y_pixal_world , 'pixal_X':x_pixal,'pixal_Y':y_pixal,'height':height})
-                                                # f.write(f'{lat},{lon},{color},{[x_pixal_world,y_pixal_world]},{[x_pixal,y_pixal]},{[height]}\n')
+                                                f.write(f'{lat},{lon},{[x_pixal,y_pixal]}\n')
                                         pixals_per_tile.append(temp2)
                                 temp.append(pixals_per_tile)
                         cords_tiles_matrix.append(pixals_per_tile)
 
-                return flat_array_cords_tiles_matrix,og_square
+                return flat_array_cords_tiles_matrix
 
-
-        def get_center(self,point,square):
-                if Point(point).within(square) and point not in self.hexagon_centers:
-                        self.hexagon_centers.append(point)
-                        if( Point([point[0]+50,point[1]+50]).within(square) and [point[0]+50,point[1]+50] not in self.hexagon_centers):
-                                self.get_center([point[0]+50,point[1]+50],square)
-                        if( Point([point[0]+50,point[1]-50]).within(square) and [point[0]+50,point[1]-50] not in self.hexagon_centers):
-                                self.get_center([point[0]+50,point[1]-50],square)
-                        if( Point([point[0]-50,point[1]-50]).within(square) and [point[0]-50,point[1]-50] not in self.hexagon_centers):
-                                self.get_center([point[0]-50,point[1]-50],square)
-  
-                return
 
         def assign_points(self,poly):
                 temp=[]
@@ -148,34 +142,116 @@ class area_calculate():
                                 temp.append(data)
                 return temp
 
+        def pointy_hex_corner(self,center, size, i):
+                angle_deg = 60 * i - 30
+                angle_rad = math.pi / 180 * angle_deg
+                return Point(center[0] + size * math.cos(angle_rad),center[1] + size * math.sin(angle_rad))
+
+
+        def create_hexgrid(self,bbox, side):
+                """
+                returns an array of Points describing hexagons centers that are inside the given bounding_box
+                :param bbox: The containing bounding box. The bbox coordinate should be in Webmercator.
+                :param side: The size of the hexagons'
+                :return: The hexagon grid
+                """
+                grid = []
+
+                v_step = math.sqrt(3) * side
+                h_step = 1.5 * side
+
+                x_min = bbox[3][0]
+                x_max = bbox[1][0]
+                y_min = bbox[1][1]
+                y_max = bbox[3][1]
+                # print(x_min , x_max , y_max , y_min)
+
+                h_skip = math.ceil(x_min / h_step) - 1
+                h_start = h_skip * h_step
+
+                v_skip = math.ceil(y_min / v_step) - 1
+                v_start = v_skip * v_step
+
+                h_end = x_max + h_step
+                v_end = y_max + v_step
+
+                if v_start - (v_step / 2.0) < y_min:
+                        v_start_array = [v_start + (v_step / 2.0), v_start]
+                else:
+                        v_start_array = [v_start - (v_step / 2.0), v_start]
+
+                v_start_idx = int(abs(h_skip) % 2)
+
+                c_x = h_start
+                c_y = v_start_array[v_start_idx]
+                v_start_idx = (v_start_idx + 1) % 2
+                # transformer = Transformer.from_crs("epsg:3857", "epsg:4326")
+                while c_x < h_end:
+                        while c_y < v_end:
+                                # c_x1, c_y1=transformer.transform(c_x, c_y)
+                                grid.append([c_x, c_y])
+                                c_y += v_step
+                        c_x += h_step
+                        c_y = v_start_array[v_start_idx]
+                        v_start_idx = (v_start_idx + 1) % 2
+                
+                return grid
+
+        def create_hexagon(self,l, x, y):
+                """
+                Create a hexagon centered on (x, y)
+                :param l: length of the hexagon's edge
+                :param x: x-coordinate of the hexagon's center
+                :param y: y-coordinate of the hexagon's center
+                :return: The polygon containing the hexagon's coordinates
+                """
+                c = [[x + math.cos(math.radians(angle)) * l, y + math.sin(math.radians(angle)) * l] for angle in range(0, 360, 60)]
+                for p in list(Polygon(c).exterior.coords):
+                        transformer = Transformer.from_crs("epsg:3857", "epsg:4326")
+                        x1,y1 = transformer.transform(p[0], p[1])
+                        print(f"{x1},{y1}")
+                return Polygon(c)
+
         def create_hexagons(self):
-                self.area_data , square = self.get_area_data()
-                starting_point  = [list(square.exterior.coords)[3][0] + 25,list(square.exterior.coords)[3][1] - 25]
-                self.get_center(starting_point,square)
-                r=50
-                h = (2/(3**0.5))*r
-                print(self.hexagon_centers)
-                # r_tr = [abs(hx[i]-hx[i+1]) for i in range(len(self.hexagon_centers)-1)]
-                # r = np.mean(r_tr)/2
+                self.area_data = self.get_area_data()
+                square =  self.get_square()
+                grid = self.create_hexgrid(list(square.exterior.coords), 28.868)
+                self.hexagon_centers = grid
+                # w = math.sqrt(3) * 28.868
+                # h = 2 * 28.868
+                # starting_point  = [list(square.exterior.coords)[3][0] + w,list(square.exterior.coords)[3][1] - h]
+                # self.get_center(starting_point,square,w,h)
+                # r=28.8675
+                # h = (2/(3**0.5))*r
+                # print(self.hexagon_centers)
                 complete_hexagons = []
                 for point in self.hexagon_centers:
-                        dic = {'center':point,'hexa_polygon':Polygon([((point[0]+(h/2),point[1]+r)),
-                                    (point[0]+h,point[1]),
-                                    (point[0]+(h/2),point[1]-r),
-                                        (point[0]-(h/2),point[1]-r),
-                                        (point[0]-h,point[1]),
-                                        (point[0]-(h/2),point[1]+r )])}
+                        dic = {'center':point,'hexa_polygon':self.create_hexagon(28.868,point[0],point[1])}
                         temp=[]
                         transformer = Transformer.from_crs("epsg:3857", "epsg:4326")
                         for point in list(dic['hexa_polygon'].exterior.coords):
                                 x,y = transformer.transform(point[0], point[1])
-                                print(x,y)
                                 temp.append([x,y])
                         dic['hexa_polygon_cord']=Polygon(temp) 
                         complete_hexagons.append(dic)
                 complete_hexagons = pd.DataFrame(complete_hexagons)
-                complete_hexagons['contain_points']=dic['hexa_polygon']
-                # complete_hexagons['contain_points']=complete_hexagons['contain_points'].apply(self.assign_points)
+                complete_hexagons['contain_points']=complete_hexagons['hexa_polygon']
+                complete_hexagons['contain_points']=complete_hexagons['contain_points'].apply(self.assign_points)
+                return complete_hexagons
+        
+
+        def flat_suface(self,points):
+                heights = []
+                for p in points:
+                        heights.append(p['elevation(meter)'])
+                
+                if len(heights) >= 2:
+                        return stdev(heights)
+                return 0
+                        
+        def get_flat_surfaces(self,complete_hexagons):
+                complete_hexagons['flat%'] = complete_hexagons['contain_points']
+                complete_hexagons['flat%'] = complete_hexagons['flat%'].apply(self.flat_suface)
                 return complete_hexagons
 
 
@@ -187,9 +263,13 @@ class area_calculate():
 
 
 
+
+
 def main():
-    area  = area_calculate(33.64013671875,73.0455032)
-    print(area.create_hexagons().to_string())
+    area  = area_calculate(33.64013671875,73.0455032,200)
+    hexagons = area.create_hexagons()
+#   print(hexagons.to_string())
+    hexagons = area.get_flat_surfaces(hexagons)
 
 if __name__ == "__main__":
     main()
