@@ -80,6 +80,13 @@ if(con){
             catch{
 
             }
+            try{
+                map.removeLayer('lol2');
+                map.removeSource('lol')
+            }
+            catch{
+
+            }
             
             add_hexagons(data1)
             console.log(result.square)
@@ -166,7 +173,7 @@ function add_hexagons(data){
     map.on('click', 'park-boundary', function (e) {
     new mapboxgl.Popup()
     .setLngLat(e.lngLat)
-    .setHTML("<p>average height: "+e.features[0].properties.avgheight+"</p> <br> <p>Flatness: "+ e.features[0].properties.flatness +"%</p><br> <p>Points: "+ e.features[0].properties.points +"%</p>")
+    .setHTML("<p>average height: "+e.features[0].properties.avgheight+"</p> <br> <p>Flatness: "+ e.features[0].properties.flatness +"</p><br> <p>Points: "+ e.features[0].properties.points +"</p> <br> <p>x: "+ e.features[0].properties.x +"</p><br> <p>y: "+ e.features[0].properties.y +"</p>")
     .addTo(map);
     console.log(e.features[0].properties.triangles)
     });
@@ -199,8 +206,6 @@ function create_square(data){
     },
     'filter': ['==', '$type', 'Polygon']
     });
-
-    cosnole.log('oka')
 }
 
 

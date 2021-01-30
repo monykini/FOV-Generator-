@@ -48,8 +48,9 @@ class Hexa():
     get_avgHeight(self)\n
     create_hexagon(self)\n
     get_sides_4326(self)\n
+    dertmine_surfaces(self)
     """
-    def __init__(self,center):
+    def __init__(self,center,**kwargs):
         self.sides = [] #polygon
         self.points = [] 
         self.flat = 0
@@ -57,6 +58,17 @@ class Hexa():
         self.triangles = []#list of triangles
         self.obstructs = False
         self.sideLength = 28.868
+        self.x = 0 
+        self.y = 0
+        self.cube=[]
+        self.falt_sufrace=[]
+        self.falt_sufrace_points=[]
+
+        for key, value in kwargs.items():
+            if key == 'x':
+                self.x = value
+            elif key == 'y':
+                self.y = value
         
     
     def check_flatness(self):
@@ -72,85 +84,136 @@ class Hexa():
                 else:
                     point_1 = sides[p]
                     point_2 = sides[p+1]
-                # print(point_1)
                 polygons.append(Triangle(Polygon([point_1,point_2,self.center])))
             self.triangles = polygons
-        # print(self.triangles)
         for data in self.points:
             for tri in self.triangles:
-                # print(hexa.create_hexagon())
                 if Point(data.mac_latlon[0],data.mac_latlon[1]).within(tri.sides):
                         tri.points.append(data)
-                        # print("pounts" , data.latlon)
         
         accepted=0
         for tri in self.triangles:
-            heights = []
+            matrix= []
             for p in tri.points:
-                heights.append(p.height)
-            
-            if len(heights) >= 2:
-                heights_mean = mean(heights)
-                deviation = stdev(heights)
-                lowerBound = heights_mean - 2*(deviation)
-                higherBound = heights_mean + 2*(deviation)
-                tri.flatness = round((abs(lowerBound - higherBound )/lowerBound) * 100,4)
-                print(tri.flatness , lowerBound , higherBound , heights_mean,len(tri.points))
-                # print()
-                if tri.flatness <= 1:
-                    accepted += 1
+                matrix.append([p.pixal_xy[0],p.pixal_xy[1],p.height])
+            if len(matrix) > 3:
+                tri.flatness = self.isPlaneLine(matrix)
+            if tri.flatness >= 1:
+                accepted += 1
         
-        
+        self.flat = round((accepted/6)*100,2)
 
-        matrix= []
-
-        for p in self.points:
-            matrix.append([p.pixal_xy[0],p.pixal_xy[1],p.height])
-        if len(matrix) > 3:
-            print(self.isPlaneLine(matrix),'PCA')
-            self.flat = self.isPlaneLine(matrix)
         return self.flat
         
-        
-
-        
-
-
-        
-
-        # heights = []
-        # for p in self.points:
-        #         heights.append(p['elevation(meter)'])
-        
-
-
-        # if len(heights) >= 2:
-        #         heights_mean = mean(heights)
-        #         deviation = stdev(heights)
-
-    
 
     def isPlaneLine(self,XYZ):
-        ''' 
-            XYZ is n x 3 metrix storing xyz coordinates of n points
-            It uses PCA to check the dimensionality of the XYZ
-            th is the threshold, the smaller, the more strict for being 
-            planar/linearity
 
-            return 0 ==> randomly distributed
-            return 1 ==> plane
-            return 2 ==> line
-
-        '''
-        th = 1e-3
+        th = 2e-3
 
         pca = decomposition.PCA()
         pca.fit(XYZ)
         pca_r = pca.explained_variance_ratio_
-        print(pca_r)
+        # print(pca_r)
         t = np.where(pca_r < th)
-        print(t)
+        # print(t)
         return t[0].shape[0]
+
+
+    def beta_flatness(self):
+        x,y,z=[],[],[]
+        if len(self.points) < 10:
+            #-----not enough points to calaculate
+            return
+        for data in self.points:
+            x.append(data.pixal_xy[0])
+            y.append(data.pixal_xy[1])
+            z.append(data.height)
+        if int(max(z)-min(z)) <= 0 :
+            #this means the area is flat
+            return
+        min_total_x , min_total_y , min_total_z = min(x),min(y),int(max(z))
+        min_x,min_y,min_z,max_x,max_y,max_z=int(min(x)-min(x)),int(min(y)-min(y)),int(min(z)-min(z)),int(max(x)-min(x)),int(max(y)-min(y)),int(max(z)-min(z))
+        cube = np.full((max_z+1, max_x+1,max_y+1 ),-1)
+        cube[...]=-1
+        for data in self.points:
+            cube[int((data.height)-min(z))][int(data.pixal_xy[0]-min(x))][int(data.pixal_xy[1]-min(y))]=1
+        #--------left to right scan-----------------------------
+        scanner =np.full((max_x+1,max_y+1), 9)
+        scanner[...]=-1
+        for i in range(max_x):
+            for j in range(max_y):
+                for z in range(max_z, -1, -1):
+                    if cube[z][i][j] >= 1:
+                        scanner[i][j] = z
+
+        points_accessed = []
+        falt_areas = []
+        print(scanner)
+        for x in range(len(scanner)):
+            for y in range(len(scanner[x])):
+                if [x,y] not in points_accessed:
+                    flat=[]
+                    self.dertmine_surfaces(scanner,points_accessed,flat,x,y,flat)
+                    if len(flat) > 1:
+                        falt_areas.append(flat)
+        flat_surface_points=[]
+        for flat in falt_areas:
+            flat_points=[]
+            for p in flat:
+                for poi in self.points:
+                    if poi.pixal_xy == [p[0]+min_total_x,p[1]+min_total_y]:
+                        flat_points.append(poi)
+            flat_surface_points.append(flat_points)
+        self.cube = cube
+        self.falt_sufrace = falt_areas
+        self.falt_sufrace_points = flat_surface_points
+
+        #-----------boundries of flat surfaces------------------------------------
+
+        
+
+
+    def dertmine_surfaces(self,scanner,points_accessed,falt,x,y,flat):
+        checks = 0
+        #check left point
+        if([x,y] not in points_accessed and scanner[x][y] != -1):
+            points_accessed.append([x,y])
+            if(x-1 >= 0):
+                if  abs(scanner[x][y] - scanner[x-1][y]) <= 1:
+                    checks+=1
+                    self.dertmine_surfaces(scanner,points_accessed,flat,x-1,y,flat)
+            else:
+                checks+=1
+            #check right point
+            if(x+1 < len(scanner)):
+                if  abs(scanner[x][y] - scanner[x+1][y]) <= 1:
+                    checks+=1
+                    self.dertmine_surfaces(scanner,points_accessed,flat,x+1,y,flat)
+            else:
+                checks+=1 
+            #check bottom point
+            if( y+1 < len(scanner[x])):
+                if  abs(scanner[x][y] - scanner[x][y+1]) <= 1:
+                    checks+=1
+                    self.dertmine_surfaces(scanner,points_accessed,flat,x,y+1,flat)
+            else:
+                checks+=1 
+
+            #check top point
+
+            if( y-1 >= 0):
+                if  abs(scanner[x][y] - scanner[x][y-1]) <= 1:
+                    checks+=1
+                    self.dertmine_surfaces(scanner,points_accessed,flat,x,y-1,flat)
+            else:
+                checks+=1 
+
+        if checks>=1 :
+            flat.append([x,y])
+
+        return
+
+
 
 
 
@@ -248,3 +311,46 @@ class userMarker():
 
     def get_weather():
         pass
+
+
+
+
+class FOV():
+    """
+    class FOV()
+    methods:\n
+    1.create_fov(hexa_center , user_point)\n
+    both needs to be in epsg:3857
+    """
+
+    def __init__(self):
+        self.visibility = None
+        self.view_area = None
+        self.hexas = []
+        self.angle = 30
+    
+
+    def create_fov(self , hexa_center , userPoint):
+        height_vector = [abs(hexa_center[0]-userPoint[0]) ,abs(hexa_center[1]-userPoint[1])]
+        height_value = math.sqrt(math.pow(hexa_center[0]-userPoint[0],2)+math.pow(hexa_center[1]-userPoint[1],2))
+        print( height_value)
+        hypo = height_value / math.cos((self.angle/2)*(math.pi/180))
+        length_new_vector =abs( hypo * math.sin((self.angle/2)*(math.pi/180)))
+        height_normal = [height_vector[0]/height_value , height_vector[1]/height_value]
+        # diff_x =userPoint[0]-((length_new_vector * hexa_center[1]-userPoint[1]) / height_value)
+        # diff_y =userPoint[1]-((length_new_vector * userPoint[0]-hexa_center[0] )/height_value)
+        # print(diff_x , diff_y , 'shiiit')
+        # diff_x =userPoint[0]+((length_new_vector * hexa_center[1]-userPoint[1]) / height_value)
+        # diff_y =userPoint[1]+((length_new_vector * userPoint[0]-hexa_center[0] )/height_value)
+        # print(diff_x , diff_y , 'shiiit2')
+        cos_90 = 0
+        sin_90 = 1
+        matrix_height_normal = [[height_normal[0]],[height_normal[1]]]
+        matix_clock_wise = [[0 , -1],[1 , 0]]
+        matix_anticlock_wise = [[0 , 1],[-1 , 0]]
+        vector1 = ((np.matmul(matix_clock_wise,matrix_height_normal)*length_new_vector).ravel()).tolist()
+        vector2 = ((np.matmul(matix_anticlock_wise,matrix_height_normal)*length_new_vector).ravel()).tolist()
+        vertices = [hexa_center , [userPoint[0]+vector2[0] , userPoint[1]+vector1[1]],[userPoint[0]+vector1[0] , userPoint[1]+vector2[1]]]
+        self.view_area = vertices
+
+

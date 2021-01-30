@@ -51,15 +51,20 @@ class hexaGrid():
         c_y = v_start_array[v_start_idx]
         v_start_idx = (v_start_idx + 1) % 2
         # transformer = Transformer.from_crs("epsg:3857", "epsg:4326")
+        x = 0
         while c_x < h_end:
+                y = 0
                 while c_y < v_end:
                         # c_x1, c_y1=transformer.transform(c_x, c_y)
-                        hexa = Hexa([c_x, c_y])
+                        hexa = Hexa([c_x, c_y],x=x,y=y)
+                        print(hexa.x)
                         grid.append(hexa)
                         c_y += v_step
+                        y+=1
                 c_x += h_step
                 c_y = v_start_array[v_start_idx]
                 v_start_idx = (v_start_idx + 1) % 2
+                x+=1
         self.hexas = grid
         return grid
 
