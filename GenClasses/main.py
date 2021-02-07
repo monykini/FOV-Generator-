@@ -11,12 +11,10 @@ class FOV_fucade():
         Marker = userMarker(latlon,200)
         Marker.get_square()
         Grid = hexaGrid(Marker)
-        Grid.calculate_grid()
         area_array = tileGatherer(Marker)
         area_array.conver_raster_tiles()
-        Grid.Mapper(area_array.areaArray)
-
-        return Grid.hexas , Marker.get_square_4326()
+        Grid.Mapper(area_array.areaArray)  
+        return Grid.hexas , Marker.get_square_4326(),area_array.areaArray,Grid.flat_surfaces
 
 
     def get_ti(self,latlon):

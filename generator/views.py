@@ -4,19 +4,16 @@ from GenClasses.main import FOV_fucade
 import jsonpickle
 def genrator(request):
     if request.method == 'POST':
-        print(request.method)
         lat = request.POST.get('lati',None)
         lon = request.POST.get('loni',None)
-        print(lat,lon)
         fucade = FOV_fucade() 
-        view , square = fucade.create_FOV([lat,lon])
+        view , square,points_tile , field_of_view = fucade.create_FOV([lat,lon])
         data={'type': 'FeatureCollection','features': [],}
         all_hexagons = []
         for v in view:
             hexagon = {'type': 'Feature',"properties":"",'geometry': {'type': 'Polygon','coordinates': []}}
             hexagon['geometry']['coordinates'].append([li[::-1] for li in v.get_sides_4326()])
-            v.beta_flatness()
-            hexagon["properties"]={"avgheight":v.get_avgHeight(),"flatness":v.check_flatness() , "points":len(v.points) , 'x':v.x , 'y':v.y}
+            hexagon["properties"]={"avgheight":v.get_avgHeight(),"flatness":v.flat , "points":len(v.points) , 'x':v.x , 'y':v.y}
             triangle=[]
             for t in v.triangles:
                 tri={"sides":t.flatness}
@@ -35,10 +32,22 @@ def genrator(request):
         data['features']= all_hexagons
 
         data2={'type': 'FeatureCollection','features': [],}
-        square2 = {'type': 'Feature',"properties":"",'geometry': {'type': 'Polygon','coordinates': []}}
-        square2['geometry']['coordinates'].append([li[::-1] for li in square])
-        data2['features']= [square2]
-        return JsonResponse({'data':data , 'square':data2})
+        allsquare=[]
+        for v in field_of_view:
+            square2 = {'type': 'Feature',"properties":"",'geometry': {'type': 'Polygon','coordinates': []}}
+            square2['geometry']['coordinates'].append([li[::-1] for li in v.get_sides_4326()])
+            allsquare.append(square2)
+        data2['features']= allsquare
+
+
+        data3 = {'type': 'FeatureCollection','features': [],}
+        all_points=[]
+        for p in points_tile:
+            square2 = {'type': 'Feature',"properties":"",'geometry': {'type': 'Point','coordinates': []}}
+            square2['geometry']['coordinates']=p.latlon[::-1]
+            all_points.append(square2)
+        data3['features']= all_points
+        return JsonResponse({'data':data , 'square':data2 , 'data3':data3})
     return render(request,'map/map.html')
 
 def test_fov_view(request):

@@ -87,10 +87,19 @@ if(con){
             catch{
 
             }
+            try{
+                map.removeLayer('pointsdata2');
+                map.removeSource('pointsdata')
+            }
+            catch{
+
+            }
             
             add_hexagons(data1)
             console.log(result.square)
             create_square(result.square)
+            console.log(result.data3)
+            create_points(result.data3)
         },
         error:function(data){
             alert('error')
@@ -155,41 +164,62 @@ if(con){
     });
 
 function add_hexagons(data){
-    map.addSource('national-park', {
-    'type': 'geojson',
-    'data':data
-    });
-    map.addLayer({
-    'id': 'park-boundary',
-    'type': 'fill',
-    'source': 'national-park',
-    'paint': {
-    'fill-color': '#F08080',
-    'fill-opacity': 0.6
-    },
-    'filter': ['==', '$type', 'Polygon']
-    });
+    // map.addSource('national-park', {
+    // 'type': 'geojson',
+    // 'data':data
+    // });
+    // map.addLayer({
+    // 'id': 'park-boundary',
+    // 'type': 'fill',
+    // 'source': 'national-park',
+    // 'paint': {
+    // 'fill-color': '#F08080',
+    // 'fill-opacity': 0.6
+    // },
+    // 'filter': ['==', '$type', 'Polygon']
+    // });
 
-    map.on('click', 'park-boundary', function (e) {
-    new mapboxgl.Popup()
-    .setLngLat(e.lngLat)
-    .setHTML("<p>average height: "+e.features[0].properties.avgheight+"</p> <br> <p>Flatness: "+ e.features[0].properties.flatness +"</p><br> <p>Points: "+ e.features[0].properties.points +"</p> <br> <p>x: "+ e.features[0].properties.x +"</p><br> <p>y: "+ e.features[0].properties.y +"</p>")
-    .addTo(map);
-    console.log(e.features[0].properties.triangles)
-    });
+    // map.on('click', 'park-boundary', function (e) {
+    // new mapboxgl.Popup()
+    // .setLngLat(e.lngLat)
+    // .setHTML("<p>average height: "+e.features[0].properties.avgheight+"</p> <br> <p>Flatness: "+ e.features[0].properties.flatness +"</p><br> <p>Points: "+ e.features[0].properties.points +"</p> <br> <p>x: "+ e.features[0].properties.x +"</p><br> <p>y: "+ e.features[0].properties.y +"</p>")
+    // .addTo(map);
+    // console.log(e.features[0].properties.triangles)
+    // });
     
-    // Change the cursor to a pointer when the mouse is over the states layer.
-    map.on('mouseenter', 'park-boundary', function () {
-    map.getCanvas().style.cursor = 'pointer';
-    });
+    // // Change the cursor to a pointer when the mouse is over the states layer.
+    // map.on('mouseenter', 'park-boundary', function () {
+    // map.getCanvas().style.cursor = 'pointer';
+    // });
     
-    // Change it back to a pointer when it leaves.
-    map.on('mouseleave', 'park-boundary', function () {
-    map.getCanvas().style.cursor = '';
-    });
+    // // Change it back to a pointer when it leaves.
+    // map.on('mouseleave', 'park-boundary', function () {
+    // map.getCanvas().style.cursor = '';
+    // });
  
 
 }
+
+function create_points(data){
+    // map.addSource('pointsdata', {
+    // 'type': 'geojson',
+    // 'data':data
+    // });
+    // map.addLayer({
+    // 'id': 'pointsdata2',
+    // 'type': 'fill',
+    // 'source': 'pointsdata',
+    // });
+
+    // points = data['features']
+    // for(i=0 ; i<points.length ; i++){
+    //     var marker = new mapboxgl.Marker()
+    //     .setLngLat(points[i].geometry.coordinates)
+    //     .addTo(map);
+    // }
+
+}
+
 
 function create_square(data){
     map.addSource('lol', {

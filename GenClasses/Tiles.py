@@ -93,7 +93,7 @@ class tileGatherer():
                                         maerc_lat,maerc_lon = transformer.transform(lat, lon)
                                         height = float(-10000 + ((color[0] * 256 * 256 + color[1] * 256 + color[2]) * 0.1))
                                         temp2.append({'lat':lat,'lon':lon,'Mercator':[maerc_lat,maerc_lon] , 'color':color ,'world_pixal_X':x_pixal_world,'world_pixal_Y':y_pixal_world , 'pixal_X':x_pixal,'pixal_Y':y_pixal,'height':height})
-                                        if Point(maerc_lat,maerc_lon).within(Polygon(self.userMarker.square)):
+                                        if Point(maerc_lat,maerc_lon).intersects(Polygon(self.userMarker.square)):
                                                 data = Points([lat,lon], [maerc_lat,maerc_lon] , [x_pixal,y_pixal] , [x_pixal_world,y_pixal_world] , height , color)
                                                 flat_array_cords_tiles_matrix.append(data)
                                                 f.write(f'{lat},{lon},{[x_pixal,y_pixal]},{color}\n')
