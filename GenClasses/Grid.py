@@ -82,7 +82,6 @@ class hexaGrid():
 
         def assign_falt_surfaces(self):
                 for hexa in self.hexas:
-                        hexa.check_flatness()
                         hexa.beta_flatness()
                         for flatpoints in hexa.falt_sufrace_points:
                                 flat_Surface = flatSurface(flatpoints,hexa)
@@ -91,7 +90,7 @@ class hexaGrid():
                                         print(hexa.center , 'center')
                                         fov.create_fov(hexa.center  , self.userMarker.get_latlonMac())
                                         print(fov.height , 'height')
-                                        if fov.height >= 10 and fov.height <=4000:
+                                        if fov.height >= 100 and fov.height <=4000:
                                                 flat_Surface.fov = fov
                                                 print(fov.view_area)
                                                 self.flat_surfaces.append(flat_Surface)

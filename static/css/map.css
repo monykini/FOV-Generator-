@@ -13,3 +13,61 @@ top: 0;
 left: 0;
 z-index: 9999;
 }
+
+
+.overlay{
+    position: fixed;
+    top: 15vh;
+    min-height: 50vh;
+    left: 20vw;
+    width: 60vw;
+    
+}
+.overlay-summary{
+    position: fixed;
+    top: 15vh;
+    min-height: 50vh;
+    right: 1vw;
+    width: 15vw;
+}
+
+.mapboxgl-ctrl-top-right .mapboxgl-ctrl {
+    background-color: #282828de;
+    color: aqua;
+    box-shadow: 5px 5px 20px;
+
+}
+
+.neonButton , .neonButton:focus{
+    background: #2a2d31;
+    color: #02f3f3;
+    border-color: #02f3f3;
+    box-shadow: 0 0 0 0 rgb(38 143 255 / 50%);
+}
+
+.neonButton:hover{
+    background: #02f3f357;
+    color: #000000;
+    border-color: #2a2d31;
+}
+.wrapper{
+    background-color: #282828de;
+    padding: 10px ;
+    box-shadow: 5px 5px 20px;
+    border-radius: 5px;
+    color: aqua;
+}
+
+.areaForm{
+    display: None;
+}
+#flatSurfaceSumary{
+
+}
+#flatSurfaceSumary td{
+ width: 6vw;
+ margin-bottom: 2px;
+}
+#flatSurfaceSumary tr{
+    height: 4vh;
+}

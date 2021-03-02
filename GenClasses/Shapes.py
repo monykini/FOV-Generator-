@@ -66,7 +66,6 @@ class Hexa():
     Hexa(center)
 
     methods:- \n
-    check_flatness(self)\n
     get_maxHeight(self)\n
     get_avgHeight(self)\n
     create_hexagon(self)\n
@@ -75,13 +74,14 @@ class Hexa():
     beta_flatness(self)\n
     create_cube(self,points , checkNmber = None)\n
     """
+
+
     def __init__(self,center,**kwargs):
         self.sides = [] #polygon
         self.points = [] 
         self.flat = 0
         self.center = center
-        self.triangles = []#list of triangles
-        self.obstructs = False
+        self.triangles = [] #list of triangles
         self.sideLength = 28.868
         self.x = 0 
         self.y = 0
@@ -96,52 +96,6 @@ class Hexa():
                 self.y = value
         self.create_hexagon()
         
-    
-    def check_flatness(self):
-        if self.triangles == []:
-            polygons = []
-            sides = list(self.sides.exterior.coords)
-            for p in range(len(sides)-1):
-                point_1 = []
-                point_2 = []
-                if(p >= len(sides)-1):
-                    point_1 = sides[0]
-                    point_2 = sides[p]
-                else:
-                    point_1 = sides[p]
-                    point_2 = sides[p+1]
-                polygons.append(Triangle(Polygon([point_1,point_2,self.center])))
-            self.triangles = polygons
-        for data in self.points:
-            for tri in self.triangles:
-                if Point(data.mac_latlon[0],data.mac_latlon[1]).within(tri.sides):
-                        tri.points.append(data)
-        
-        accepted=0
-        for tri in self.triangles:
-            matrix= []
-            for p in tri.points:
-                matrix.append([p.pixal_xy[0],p.pixal_xy[1],p.height])
-            if len(matrix) > 3:
-                tri.flatness = self.isPlaneLine(matrix)
-            if tri.flatness >= 1:
-                accepted += 1
-        
-        self.flat = round((accepted/6)*100,2)
-
-        return self.flat
-        
-
-    def isPlaneLine(self,XYZ):
-
-        th = 2e-3
-
-        pca = decomposition.PCA()
-        pca.fit(XYZ)
-        pca_r = pca.explained_variance_ratio_
-        t = np.where(pca_r < th)
-        return t[0].shape[0]
-
 
     def create_cube(self,points , checkNmber = None):
         x,y,z=[],[],[]
@@ -156,11 +110,12 @@ class Hexa():
         #     return 0,0,0,0,0,0,0
         min_total_x , min_total_y , min_total_z = min(x),min(y),int(max(z))
         min_x,min_y,min_z,max_x,max_y,max_z=int(min(x)-min(x)),int(min(y)-min(y)),int(min(z)-min(z)),int(max(x)-min(x)),int(max(y)-min(y)),int(max(z)-min(z))
+        print(max_z , min(z),'z-values')
         cube = np.full((max_z+1, max_x+1,max_y+1 ),-1)
-        cube[...]=-1
+        cube[...] = -1
         for data in points:
             cube[int((data.height)-min(z))][int(data.pixal_xy[0]-min(x))][int(data.pixal_xy[1]-min(y))]=1
-        print(cube)
+        # print(cube)
         return cube , min_total_x , min_total_y , min_total_z ,max_x,max_y,max_z
 
         
@@ -183,6 +138,7 @@ class Hexa():
                 for z in range(max_z, -1, -1):
                     if cube[z][i][j] >= 1:
                         scanner[i][j] = z
+                        break
 
         print(scanner)
         # print(scanner)
@@ -197,6 +153,7 @@ class Hexa():
                         falt_areas.append(flat)
                         # print(flat)
         flat_surface_points=[]
+        print(falt_areas,"flat")
         for flat in falt_areas:
             flat_points=[]
             for p in flat:
@@ -221,7 +178,7 @@ class Hexa():
                     for z in range(max_z, -1, -1):
                         if cube[z][i][j] >= 1:
                             scanner[i][j] = z
-            # print(scanner)
+            print(scanner)
             for x in range(len(scanner)):
                 array = []
                 for y in range(len(scanner[x])):
@@ -237,12 +194,8 @@ class Hexa():
                     for poi in p:
                         if poi.pixal_xy == [array[0][0]+min_total_x,array[0][1]+min_total_y]:
                             polygon.append(poi)
-            # print(polygon,'leftside')
-            # print(polygon,'rightside')
             if len(polygon) > 2 and len(polygon2) > 0:
                 flat_surface_polygons.append(polygon+polygon2[::-1])
-                # print(polygon+polygon2[::-1])
-                # print("#-----------------00000--------------------")
         self.falt_sufrace_points = flat_surface_polygons
 
     
@@ -288,11 +241,6 @@ class Hexa():
             flat.append([x,y])
 
         return
-
-
-
-
-
 
     def get_maxHeight(self):
         heights= []
@@ -403,6 +351,7 @@ class FOV():
     def __init__(self):
         self.visibility = None
         self.view_area = None
+        self.area = 0
         self.hexas = []
         self.angle = 30
         self.height = 0
@@ -428,8 +377,10 @@ class FOV():
         matix_anticlock_wise = [[0 , 1],[-1 , 0]]
         vector1 = ((np.matmul(matix_clock_wise,matrix_height_normal)*length_new_vector).ravel()).tolist()
         vector2 = ((np.matmul(matix_anticlock_wise,matrix_height_normal)*length_new_vector).ravel()).tolist()
-        vertices = [hexa_center , [userPoint[0]+vector2[0] , userPoint[1]+vector1[1]],[userPoint[0]+vector1[0] , userPoint[1]+vector2[1]]]
+        vertices = [hexa_center , [userPoint[0]+vector1[0] , userPoint[1]+vector2[1]],[userPoint[0]+vector2[0] , userPoint[1]+vector1[1]]]
         self.view_area = vertices
+        polygon = shapely.geometry.Polygon(self.view_area)
+        self.area = polygon.area
         self.get_fov_4326()
 
     def get_fov_4326(self):

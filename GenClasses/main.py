@@ -7,8 +7,8 @@ class FOV_fucade():
     """
     docstring
     """
-    def create_FOV(self,latlon):
-        Marker = userMarker(latlon,200)
+    def create_FOV(self,latlon,size):
+        Marker = userMarker(latlon,size)
         Marker.get_square()
         Grid = hexaGrid(Marker)
         area_array = tileGatherer(Marker)
@@ -29,13 +29,3 @@ class FOV_fucade():
         fov = FOV()
         fov.create_fov([0,10],[10,0])
         print(fov.view_area)
-
-# def main():
-#     area  = FOV_fucade()
-#     area.create_FOV()
-# #     hexagons = area.create_hexagons()
-# # #   print(hexagons.to_string())
-# #     hexagons = area.get_flat_surfaces(hexagons)
-
-# if __name__ == "__main__":
-#     main()

@@ -54,13 +54,10 @@ class tileGatherer():
 
         return total_tiles_matrix
 
-    def conver_raster_tiles(self):
-        if len(self.areaArray) > 0 :
-            return self.areaArray
 
+    def get_raster_tiles(self):
         total_tiles_matrix = self.get_tiles()
         filled_tiles_matrix = []
-        f = open("myfile1.txt", "w")
 
         for t in total_tiles_matrix:
                 temp=[]
@@ -73,6 +70,13 @@ class tileGatherer():
                         temp.append(data)
                 filled_tiles_matrix.append(temp)
 
+        return total_tiles_matrix,filled_tiles_matrix
+
+    def conver_raster_tiles(self):
+        if len(self.areaArray) > 0 :
+            return self.areaArray
+
+        total_tiles_matrix , filled_tiles_matrix  = self.get_raster_tiles()
 
         transformer = Transformer.from_crs("epsg:4326", "epsg:3857")
         cords_tiles_matrix = []
@@ -96,7 +100,7 @@ class tileGatherer():
                                         if Point(maerc_lat,maerc_lon).intersects(Polygon(self.userMarker.square)):
                                                 data = Points([lat,lon], [maerc_lat,maerc_lon] , [x_pixal,y_pixal] , [x_pixal_world,y_pixal_world] , height , color)
                                                 flat_array_cords_tiles_matrix.append(data)
-                                                f.write(f'{lat},{lon},{[x_pixal,y_pixal]},{color}\n')
+                                                # f.write(f'{lat},{lon},{[x_pixal,y_pixal]},{color}\n')
                                 pixals_per_tile.append(temp2)
                         temp.append(pixals_per_tile)
                 cords_tiles_matrix.append(pixals_per_tile)
@@ -109,21 +113,42 @@ class tileGatherer():
 
 class latlon_to_pixal_Converter():
 
-    def ClipByRange(self,n, range):
+        def ClipByRange(self,n, range):
                 return n % range
 
-    def Clip(self,n, minValue, maxValue):
-            return min(max(n, minValue), maxValue)
+        def Clip(self,n, minValue, maxValue):
+                return min(max(n, minValue), maxValue)
 
-    def PixelXYToLatLongOSM(self,pixelX,pixelY,zoomLevel):
+        def PixelXYToLatLongOSM(self,pixelX,pixelY,zoomLevel):
 
-            mapSize = math.pow(2, zoomLevel) * 256
-            tileX = math.trunc(pixelX / 256)
-            tileY = math.trunc(pixelY / 256)
+                mapSize = math.pow(2, zoomLevel) * 256
+                tileX = math.trunc(pixelX / 256)
+                tileY = math.trunc(pixelY / 256)
 
-            n = math.pi - ((2.0 * math.pi * (self.ClipByRange(pixelY, mapSize - 1) / 256)) / math.pow(2.0, zoomLevel))
+                n = math.pi - ((2.0 * math.pi * (self.ClipByRange(pixelY, mapSize - 1) / 256)) / math.pow(2.0, zoomLevel))
 
-            longitude = ((self.ClipByRange(pixelX, mapSize - 1) / 256) / math.pow(2.0, zoomLevel) * 360.0) - 180.0
-            latitude = (180.0 / math.pi * math.atan(math.sinh(n)))
-            # print(latitude,longitude)
-            return latitude,longitude
+                longitude = ((self.ClipByRange(pixelX, mapSize - 1) / 256) / math.pow(2.0, zoomLevel) * 360.0) - 180.0
+                latitude = (180.0 / math.pi * math.atan(math.sinh(n)))
+                # print(latitude,longitude)
+                return latitude,longitude
+                
+        def LatLongToPixelXYOSM(self,latitude ,longitude, zoomLevel):
+                MinLatitude = -85.05112878
+                MaxLatitude = 85.05112878
+                MinLongitude = -180
+                MaxLongitude = 180
+                mapSize = math.pow(2, zoomLevel) * 256
+
+                latitude = self.Clip(latitude, MinLatitude, MaxLatitude)
+                longitude = self.Clip(longitude, MinLongitude, MaxLongitude)
+
+                X = (longitude + 180.0) / 360.0 * (1 << zoomLevel)
+                Y = (1.0 - math.log(math.tan(latitude * math.pi / 180.0) + 1.0 / math.cos(math.radians(latitude))) / math.pi) / 2.0 * (1 << zoomLevel)
+
+                tilex = int(math.trunc(X))
+                tiley = int(math.trunc(Y))
+
+                pixelX = self.ClipByRange((tilex * 256) + ((X - tilex) * 256), mapSize - 1)
+                pixelY = self.ClipByRange((tiley * 256) + ((Y - tiley) * 256), mapSize - 1)
+
+                return pixelX , pixelY
