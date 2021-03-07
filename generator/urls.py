@@ -5,6 +5,7 @@ from . import views
 
 urlpatterns = [
     path('',views.genrator , name = 'map'),
-    # path('processData',views.processData , name = 'processData'),
+    # path('processBuildingData',views.processBuildingData , name = 'processBuildingData'),
+    # path('processHexaGrid',views.processHexaGrid , name = 'processHexaGrid'),
 
 ]

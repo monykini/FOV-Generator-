@@ -20,23 +20,6 @@ class Points():
         self.height = height
         self.color = color
 
-class Triangle():
-
-    def __init__(self,sides):
-        self.sides = sides #polygon
-        self.points = []
-        self.flatness= 0
-    
-    def get_sides_4326(self):
-        transformer = Transformer.from_crs("epsg:3857" , "epsg:4326")
-        polygon_4326 = []
-        for p in list(self.sides.exterior.coords):
-            x,y = transformer.transform(p[0], p[1])
-            polygon_4326.append([x,y])
-        return polygon_4326
-    
-
-
 class flatSurface():
     def __init__(self,points,hexa):
         self.sides=[]
@@ -53,10 +36,15 @@ class flatSurface():
             polygon = shapely.geometry.Polygon(self.sides)
             self.area = polygon.area
             self.center= list(polygon.centroid.coords)
-            print(self.area,self.center)
+            self.center = list(self.center[0])
+            print(self.area,self.center,"flat-center")
     
     def get_sides_4326(self):
         return [ i.latlon for i in self.points ]
+
+    def get_sides_mac(self):
+        return [ i.mac_latlon for i in self.points ]
+        
 
 
 
@@ -86,6 +74,7 @@ class Hexa():
         self.x = 0 
         self.y = 0
         self.cube=[]
+        self.id=None
         self.falt_sufrace=[] # may get deprecative
         self.falt_sufrace_points=[]
 
@@ -103,8 +92,8 @@ class Hexa():
             #-----not enough points to calaculate
             return
         for data in points:
-            x.append(data.pixal_xy[0])
-            y.append(data.pixal_xy[1])
+            x.append(data.world_pixal_xy[0])
+            y.append(data.world_pixal_xy[1])
             z.append(data.height)
         # if int(max(z)-min(z)) <= 0 and checkNmber!= None:
         #     return 0,0,0,0,0,0,0
@@ -114,7 +103,7 @@ class Hexa():
         cube = np.full((max_z+1, max_x+1,max_y+1 ),-1)
         cube[...] = -1
         for data in points:
-            cube[int((data.height)-min(z))][int(data.pixal_xy[0]-min(x))][int(data.pixal_xy[1]-min(y))]=1
+            cube[int((data.height)-min(z))][int(data.world_pixal_xy[0]-min(x))][int(data.world_pixal_xy[1]-min(y))]=1
         # print(cube)
         return cube , min_total_x , min_total_y , min_total_z ,max_x,max_y,max_z
 
@@ -158,7 +147,7 @@ class Hexa():
             flat_points=[]
             for p in flat:
                 for poi in self.points:
-                    if poi.pixal_xy == [p[0]+min_total_x,p[1]+min_total_y]:
+                    if poi.world_pixal_xy == [p[0]+min_total_x,p[1]+min_total_y]:
                         flat_points.append(poi)
             flat_surface_points.append(flat_points)
         self.cube = cube
@@ -186,13 +175,13 @@ class Hexa():
                         array.append([x,y])
                 if len(array) >= 2:
                     for poi in p:
-                        if poi.pixal_xy == [array[0][0]+min_total_x,array[0][1]+min_total_y]:
+                        if poi.world_pixal_xy == [array[0][0]+min_total_x,array[0][1]+min_total_y]:
                             polygon.append(poi)
-                        if poi.pixal_xy == [array[-1][0]+min_total_x,array[-1][1]+min_total_y]:
+                        if poi.world_pixal_xy == [array[-1][0]+min_total_x,array[-1][1]+min_total_y]:
                             polygon2.append(poi)
                 elif len(array) == 1:
                     for poi in p:
-                        if poi.pixal_xy == [array[0][0]+min_total_x,array[0][1]+min_total_y]:
+                        if poi.world_pixal_xy == [array[0][0]+min_total_x,array[0][1]+min_total_y]:
                             polygon.append(poi)
             if len(polygon) > 2 and len(polygon2) > 0:
                 flat_surface_polygons.append(polygon+polygon2[::-1])
@@ -279,7 +268,7 @@ class Hexa():
         for p in list(self.sides.exterior.coords):
             x,y = transformer.transform(p[0], p[1])
             polygon_4326.append([x,y])
-        return polygon_4326
+        return Polygon(polygon_4326)
 
         
 
@@ -301,19 +290,19 @@ class userMarker():
         self.latlon = latlon
         self.area = area
         self.square = 0
+        self.id = None
     
     def get_square(self):
         if self.square == 0:
             transformer = Transformer.from_crs("epsg:4326", "epsg:3857")
             # lon first lat last
+            print(self.latlon)
             x2,y2 = transformer.transform(self.latlon[0], self.latlon[1])
+            print(x2,y2)
             point = shapely.geometry.Point(x2,y2)
-            
             #anti-clock wise top - right corner
-            og_square = point.buffer(self.area, cap_style=3)
-            square = list(og_square.exterior.coords)
-            print(shapely.geometry.Polygon(square).area)
-            self.square = square
+            og_square = point.buffer(self.area , cap_style=3)
+            self.square = og_square
             return self.square
         else:
             return self.square
@@ -329,10 +318,10 @@ class userMarker():
         
         transformer = Transformer.from_crs("epsg:3857" , "epsg:4326")
         square_4326 = []
-        for p in range(len(self.square)-1):
-            x,y = transformer.transform(self.square[p][0], self.square[p][1])
+        for p in list(self.square.exterior.coords):
+            x,y = transformer.transform(p[0], p[1])
             square_4326.append([x,y])
-        return square_4326
+        return shapely.geometry.Polygon(square_4326)
 
     def get_weather(self):
         pass
@@ -392,5 +381,4 @@ class FOV():
         for p in range(len(self.view_area)):
             x,y = transformer.transform(self.view_area[p][0], self.view_area[p][1])
             square_4326.append([x,y])
-        self.view_area = square_4326
-        return self.view_area
+        return square_4326

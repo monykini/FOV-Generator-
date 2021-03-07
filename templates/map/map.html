@@ -110,7 +110,8 @@ mapboxgl.accessToken = 'pk.eyJ1IjoibW9ueWtpbmkxMTEiLCJhIjoiY2tmeWE2ZmZzMjMzczJwc
     var map = new mapboxgl.Map({
         container: 'map',
         style:        'mapbox://styles/monykini111/ckfzugdmf1ftk1alpt0whio6d',
-        center: [73.0501, 33.7077],
+        // [73.0501, 33.7077],
+        center: [-73.97049764067823,40.76466662545835],
         zoom: 12,
         pitch: 45,
         bearing: -17.6,
@@ -142,7 +143,8 @@ function tile_request(){
         url: "{% url 'map' %}",
         data: $('#areaForm').serialize(),
         success: function(result){
-            create_square(result.flatSurfaces)
+            create_square(JSON.stringify(result.flatSurfaces).replace('\'','"'))
+            console.log(JSON.stringify(result.flatSurfaces))
             hide('areaForm')
             alertify.success('Area calculated')
         },
@@ -220,10 +222,9 @@ function create_square(data){
     catch{
         
     }
-
     map.addSource('flatSurfaceSource', {
     'type': 'geojson',
-    'data':data
+    'data':JSON.parse(data)
     });
 
     map.addLayer({
@@ -236,7 +237,8 @@ function create_square(data){
     },
     'filter': ['==', '$type', 'Polygon']
     });
-
+    console.log(map.getStyle().layers)
+    console.log(JSON.parse(data))
     map.on('click', 'flatSurfaceLayer', function (e) {
     // new mapboxgl.Popup()
     // .setLngLat(e.lngLat)
