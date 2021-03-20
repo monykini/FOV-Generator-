@@ -1,22 +1,52 @@
 from .Shapes import Hexa , Point , userMarker , FOV
 from .Grid import hexaGrid
 from .Tiles import tileGatherer
+from generator import models
+from django.contrib.gis import geos
+import json
+import numpy as np
 
 
 class FOV_fucade():
     """
     docstring
     """
-    def create_FOV(self,latlon):
-        Marker = userMarker(latlon,200)
-        Marker.get_square()
+    
+    def create_FOV(self,request,latlon,size):
+        user = request.user
+        Marker = userMarker(latlon,size)
+        wsg48polygon = geos.Polygon(tuple([tuple(i[::-1])  for i in list(Marker.get_square_4326().exterior.coords)]))
+        macpolygon = geos.Polygon(tuple(Marker.get_square().exterior.coords)[:][::-1])
+        wsg48point = geos.Point(Marker.latlon[1],Marker.latlon[0])
+        macpoint = Marker.get_latlonMac()
+        macpoint = geos.Point(macpoint[1],macpoint[0])
+        marker  = models.modelUserMarker(user = user , wsg48point =wsg48point ,wsg48polygon =wsg48polygon ,macpoint=macpoint , macpolygon=macpolygon)
+        marker.save()
+        Marker.id = marker.id
         Grid = hexaGrid(Marker)
-        Grid.calculate_grid()
-        area_array = tileGatherer(Marker)
+        print(np.asarray(Marker.get_square_4326().exterior.coords))
+        area_array = tileGatherer(np.asarray(Marker.get_square_4326().exterior.coords))
         area_array.conver_raster_tiles()
-        Grid.Mapper(area_array.areaArray)
+        Grid.Mapper()
+        flat_surfaces = models.modelFlatSurface.objects.filter(marker = marker)
+        flatSurfaceGeojson={"type": "FeatureCollection","features": []}
+        for FS in flat_surfaces:
+            FovGeojson={"type": "FeatureCollection","features": [],"properties":""}
+            fov = models.modelFOV.objects.filter(flatSurface =FS)
+            for f in fov:
+                FovGeojson["features"].append({'type': 'Feature',"properties":"",'geometry': json.loads(f.wsg48polygon.geojson)})
+            properties = json.dumps(FovGeojson)
+            geojson = json.loads(FS.wsg48polygon.geojson)
+            geojson = {'type': 'Feature',"properties":"",'geometry': geojson,"properties":{'fov':properties}}
+            flatSurfaceGeojson["features"].append(geojson)
+        
+        hexagons = {"type": "FeatureCollection","features": []}
+        for hexa in models.modelHexas.objects.filter( wsg48polygon__intersects = marker.wsg48polygon , marker=marker ):
+            geojson = json.loads(hexa.wsg48polygon.geojson)
+            geojson = {'type': 'Feature',"properties":"",'geometry': geojson}
+            hexagons["features"].append(geojson)
 
-        return Grid.hexas , Marker.get_square_4326()
+        return flatSurfaceGeojson , hexagons
 
 
     def get_ti(self,latlon):
@@ -30,14 +60,3 @@ class FOV_fucade():
     def test_fov(self):
         fov = FOV()
         fov.create_fov([0,10],[10,0])
-        print(fov.view_area)
-
-# def main():
-#     area  = FOV_fucade()
-#     area.create_FOV()
-# #     hexagons = area.create_hexagons()
-# # #   print(hexagons.to_string())
-# #     hexagons = area.get_flat_surfaces(hexagons)
-
-# if __name__ == "__main__":
-#     main()

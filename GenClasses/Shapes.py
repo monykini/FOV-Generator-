@@ -3,10 +3,13 @@ from pyproj import Transformer
 from shapely.geometry import Point, Polygon, LineString
 import shapely
 import math
+from scipy import stats
 from sklearn import decomposition
 import numpy as np
-
-
+from django.contrib.gis import geos
+from generator.models import modelPoint,buildingData
+import json
+from numba import jit , njit
 
 class Points():
     """
@@ -20,21 +23,36 @@ class Points():
         self.height = height
         self.color = color
 
-class Triangle():
-
-    def __init__(self,sides):
-        self.sides = sides #polygon
-        self.points = []
-        self.flatness= 0
+class flatSurface():
+    def __init__(self,points,hexa):
+        self.sides=[]
+        self.points = points
+        self.insidePoints=[]
+        self.modeHeight=0
+        self.area=[]
+        self.center = 0
+        self.hexa=hexa
+        self.fov = None
+    
+    @jit()
+    def get_area_flat_surface(self):
+            self.sides = [ i.mac_latlon for i in self.points ]
+            polygon = shapely.geometry.Polygon(self.sides)
+            self.area = polygon.area
+            self.center= list(polygon.centroid.coords)
+            self.center = list(self.center[0])
+            heights=[]
+            for p in self.insidePoints:
+                heights.append(p.height)
+            self.modeHeight=stats.mode(heights)[0]
     
     def get_sides_4326(self):
-        transformer = Transformer.from_crs("epsg:3857" , "epsg:4326")
-        polygon_4326 = []
-        for p in list(self.sides.exterior.coords):
-            x,y = transformer.transform(p[0], p[1])
-            polygon_4326.append([x,y])
-        return polygon_4326
-    
+        return [ i.latlon for i in self.points ]
+
+    def get_sides_mac(self):
+        return [ i.mac_latlon for i in self.points ]
+        
+
 
 
 
@@ -43,112 +61,85 @@ class Hexa():
     Hexa(center)
 
     methods:- \n
-    check_flatness(self)\n
     get_maxHeight(self)\n
     get_avgHeight(self)\n
     create_hexagon(self)\n
     get_sides_4326(self)\n
-    dertmine_surfaces(self)
+    dertmine_surfaces(self,scanner,points_accessed,falt,x,y,flat)\n
+    beta_flatness(self)\n
+    create_cube(self,points , checkNmber = None)\n
     """
+
+
     def __init__(self,center,**kwargs):
         self.sides = [] #polygon
         self.points = [] 
         self.flat = 0
         self.center = center
-        self.triangles = []#list of triangles
-        self.obstructs = False
+        self.triangles = [] #list of triangles
         self.sideLength = 28.868
         self.x = 0 
         self.y = 0
         self.cube=[]
-        self.falt_sufrace=[]
+        self.id=None
+        self.falt_sufrace=[] # may get deprecative
         self.falt_sufrace_points=[]
+        self.falt_sufrace_allPoints=[]
 
         for key, value in kwargs.items():
             if key == 'x':
                 self.x = value
             elif key == 'y':
                 self.y = value
+        self.create_hexagon()
         
-    
-    def check_flatness(self):
-        if self.triangles == []:
-            polygons = []
-            sides = list(self.sides.exterior.coords)
-            for p in range(len(sides)-1):
-                point_1 = []
-                point_2 = []
-                if(p >= len(sides)-1):
-                    point_1 = sides[0]
-                    point_2 = sides[p]
-                else:
-                    point_1 = sides[p]
-                    point_2 = sides[p+1]
-                polygons.append(Triangle(Polygon([point_1,point_2,self.center])))
-            self.triangles = polygons
-        for data in self.points:
-            for tri in self.triangles:
-                if Point(data.mac_latlon[0],data.mac_latlon[1]).within(tri.sides):
-                        tri.points.append(data)
-        
-        accepted=0
-        for tri in self.triangles:
-            matrix= []
-            for p in tri.points:
-                matrix.append([p.pixal_xy[0],p.pixal_xy[1],p.height])
-            if len(matrix) > 3:
-                tri.flatness = self.isPlaneLine(matrix)
-            if tri.flatness >= 1:
-                accepted += 1
-        
-        self.flat = round((accepted/6)*100,2)
-
-        return self.flat
-        
-
-    def isPlaneLine(self,XYZ):
-
-        th = 2e-3
-
-        pca = decomposition.PCA()
-        pca.fit(XYZ)
-        pca_r = pca.explained_variance_ratio_
-        # print(pca_r)
-        t = np.where(pca_r < th)
-        # print(t)
-        return t[0].shape[0]
-
-
-    def beta_flatness(self):
+    @jit
+    def create_cube(self,points , checkNmber = None):
         x,y,z=[],[],[]
+        if len(points) < 10 and checkNmber != None:
+            #-----not enough points to calaculate
+            return
+        for data in points:
+            x.append(data.world_pixal_xy[0])
+            y.append(data.world_pixal_xy[1])
+            z.append(data.height)
+        # if int(max(z)-min(z)) <= 0 and checkNmber!= None:
+        #     return 0,0,0,0,0,0,0
+        min_total_x , min_total_y , min_total_z = min(x),min(y),int(max(z))
+        min_x,min_y,min_z,max_x,max_y,max_z=int(min(x)-min(x)),int(min(y)-min(y)),int(min(z)-min(z)),int(max(x)-min(x)),int(max(y)-min(y)),int(max(z)-min(z))
+        # print(max_z , min(z),'z-values')
+        cube = np.full((max_z+1, max_x+1,max_y+1 ),-1)
+        cube[...] = -1
+        for data in points:
+            cube[int((data.height)-min(z))][int(data.world_pixal_xy[0]-min(x))][int(data.world_pixal_xy[1]-min(y))]=1
+        # print(cube)
+        return cube , min_total_x , min_total_y , min_total_z ,max_x,max_y,max_z
+
+        
+    def beta_flatness(self):
         if len(self.points) < 10:
             #-----not enough points to calaculate
             return
-        for data in self.points:
-            x.append(data.pixal_xy[0])
-            y.append(data.pixal_xy[1])
-            z.append(data.height)
-        if int(max(z)-min(z)) <= 0 :
-            #this means the area is flat
+
+        cube , min_total_x , min_total_y , min_total_z ,max_x,max_y,max_z = self.create_cube(self.points,1)
+
+        if type(cube)== type(0) :
             return
-        min_total_x , min_total_y , min_total_z = min(x),min(y),int(max(z))
-        min_x,min_y,min_z,max_x,max_y,max_z=int(min(x)-min(x)),int(min(y)-min(y)),int(min(z)-min(z)),int(max(x)-min(x)),int(max(y)-min(y)),int(max(z)-min(z))
-        cube = np.full((max_z+1, max_x+1,max_y+1 ),-1)
-        cube[...]=-1
-        for data in self.points:
-            cube[int((data.height)-min(z))][int(data.pixal_xy[0]-min(x))][int(data.pixal_xy[1]-min(y))]=1
-        #--------left to right scan-----------------------------
+        # print(len(cube[0]))
+        # print(len(cube[0][0]))
         scanner =np.full((max_x+1,max_y+1), 9)
         scanner[...]=-1
-        for i in range(max_x):
-            for j in range(max_y):
+        for i in range(max_x+1):
+            for j in range(max_y+1):
                 for z in range(max_z, -1, -1):
                     if cube[z][i][j] >= 1:
                         scanner[i][j] = z
+                        break
 
+        # print(scanner)
+        # print(scanner)
         points_accessed = []
         falt_areas = []
-        print(scanner)
         for x in range(len(scanner)):
             for y in range(len(scanner[x])):
                 if [x,y] not in points_accessed:
@@ -156,23 +147,58 @@ class Hexa():
                     self.dertmine_surfaces(scanner,points_accessed,flat,x,y,flat)
                     if len(flat) > 1:
                         falt_areas.append(flat)
+                        # print(flat)
         flat_surface_points=[]
+        # print(falt_areas,"flat")
         for flat in falt_areas:
             flat_points=[]
             for p in flat:
                 for poi in self.points:
-                    if poi.pixal_xy == [p[0]+min_total_x,p[1]+min_total_y]:
+                    if poi.world_pixal_xy == [p[0]+min_total_x,p[1]+min_total_y]:
                         flat_points.append(poi)
             flat_surface_points.append(flat_points)
         self.cube = cube
         self.falt_sufrace = falt_areas
         self.falt_sufrace_points = flat_surface_points
-
+        flat_surface_polygons=[]
         #-----------boundries of flat surfaces------------------------------------
+        for p in flat_surface_points:
+            all_points=p
+            polygon = []
+            polygon2=[]
+            cube , min_total_x , min_total_y , min_total_z ,max_x,max_y,max_z = self.create_cube(p)
+            scanner = np.full((max_x+1,max_y+1), 9)
+            scanner[...]=-1
+            for i in range(max_x+1):
+                for j in range(max_y+1):
+                    for z in range(max_z, -1, -1):
+                        if cube[z][i][j] >= 1:
+                            scanner[i][j] = z
+            # print(scanner)
+            for x in range(len(scanner)):
+                array = []
+                for y in range(len(scanner[x])):
+                    if scanner[x][y] != -1:
+                        array.append([x,y])
+                if len(array) >= 2:
+                    for poi in p:
+                        if poi.world_pixal_xy == [array[0][0]+min_total_x,array[0][1]+min_total_y]:
+                            polygon.append(poi)
+                        if poi.world_pixal_xy == [array[-1][0]+min_total_x,array[-1][1]+min_total_y]:
+                            polygon2.append(poi)
+                elif len(array) == 1:
+                    for poi in p:
+                        if poi.world_pixal_xy == [array[0][0]+min_total_x,array[0][1]+min_total_y]:
+                            polygon.append(poi)
+            if len(polygon) > 2 and len(polygon2) > 0:
+                flat_surface_polygons.append(polygon+polygon2[::-1])
+                self.falt_sufrace_allPoints.append(all_points)
+        self.falt_sufrace_points = flat_surface_polygons
 
-        
+    
 
 
+    @jit
     def dertmine_surfaces(self,scanner,points_accessed,falt,x,y,flat):
         checks = 0
         #check left point
@@ -213,11 +239,6 @@ class Hexa():
 
         return
 
-
-
-
-
-
     def get_maxHeight(self):
         heights= []
         for p in self.points:
@@ -255,7 +276,7 @@ class Hexa():
         for p in list(self.sides.exterior.coords):
             x,y = transformer.transform(p[0], p[1])
             polygon_4326.append([x,y])
-        return polygon_4326
+        return Polygon(polygon_4326)
 
         
 
@@ -277,18 +298,20 @@ class userMarker():
         self.latlon = latlon
         self.area = area
         self.square = 0
+        self.height = 0
+        self.id = None
     
     def get_square(self):
         if self.square == 0:
             transformer = Transformer.from_crs("epsg:4326", "epsg:3857")
             # lon first lat last
+            # print(self.latlon)
             x2,y2 = transformer.transform(self.latlon[0], self.latlon[1])
+            # print(x2,y2)
             point = shapely.geometry.Point(x2,y2)
-            
             #anti-clock wise top - right corner
-            og_square = point.buffer(self.area, cap_style=3)
-            square = list(og_square.exterior.coords)
-            self.square = square
+            og_square = point.buffer(self.area , cap_style=3)
+            self.square = og_square
             return self.square
         else:
             return self.square
@@ -304,12 +327,12 @@ class userMarker():
         
         transformer = Transformer.from_crs("epsg:3857" , "epsg:4326")
         square_4326 = []
-        for p in range(len(self.square)-1):
-            x,y = transformer.transform(self.square[p][0], self.square[p][1])
+        for p in list(self.square.exterior.coords):
+            x,y = transformer.transform(p[0], p[1])
             square_4326.append([x,y])
-        return square_4326
+        return shapely.geometry.Polygon(square_4326)
 
-    def get_weather():
+    def get_weather(self):
         pass
 
 
@@ -326,14 +349,17 @@ class FOV():
     def __init__(self):
         self.visibility = None
         self.view_area = None
+        self.area = 0
         self.hexas = []
-        self.angle = 30
+        self.angle = 45
+        self.height = 0
+        self.obstrcution = 0
     
 
     def create_fov(self , hexa_center , userPoint):
         height_vector = [abs(hexa_center[0]-userPoint[0]) ,abs(hexa_center[1]-userPoint[1])]
         height_value = math.sqrt(math.pow(hexa_center[0]-userPoint[0],2)+math.pow(hexa_center[1]-userPoint[1],2))
-        print( height_value)
+        self.height = height_value 
         hypo = height_value / math.cos((self.angle/2)*(math.pi/180))
         length_new_vector =abs( hypo * math.sin((self.angle/2)*(math.pi/180)))
         height_normal = [height_vector[0]/height_value , height_vector[1]/height_value]
@@ -350,7 +376,170 @@ class FOV():
         matix_anticlock_wise = [[0 , 1],[-1 , 0]]
         vector1 = ((np.matmul(matix_clock_wise,matrix_height_normal)*length_new_vector).ravel()).tolist()
         vector2 = ((np.matmul(matix_anticlock_wise,matrix_height_normal)*length_new_vector).ravel()).tolist()
-        vertices = [hexa_center , [userPoint[0]+vector2[0] , userPoint[1]+vector1[1]],[userPoint[0]+vector1[0] , userPoint[1]+vector2[1]]]
+        vertices = [hexa_center , [userPoint[0]+vector1[0] , userPoint[1]+vector2[1]],[userPoint[0]+vector2[0] , userPoint[1]+vector1[1]]]
         self.view_area = vertices
+        polygon = shapely.geometry.Polygon(self.view_area)
+        self.area = polygon.area
+        self.get_fov_4326()
 
+    def get_obstruction(self,points,height,marker):
+        filtered_ponts = []
+        fovPoints = []
+        vertices = shapely.geometry.Polygon(tuple([tuple(li[::-1]) for li in self.get_fov_4326()]))
+        fov = geos.Polygon(tuple(vertices.exterior.coords))
+        modelpoints = modelPoint.objects.filter(wsg48Point__intersects = fov)
+        buildings = buildingData.objects.filter(geom__intersects = fov)
+        lytes = {}
+        
+        for b in buildings:
+                p = modelpoints.filter(wsg48Point__intersects = b.geom)
+                for pi in p:
+                        lytes[pi.id] = b.height
+        
+        for p in modelpoints:
+            poin = Points(list(p.wsg48Point.coords)[::-1], list(p.macPoint.coords)[::-1] , json.loads(p.pixal_xy) , json.loads(p.world_pixal_xy) , p.height+lytes.get(p.id,0) , json.loads(p.color))
+            print(poin.height , marker.height)
+            if poin.height > marker.height + 1.651:
+                filtered_ponts.append(poin)
+        print(filtered_ponts)
+        cube , min_total_x , min_total_y , min_total_z ,max_x,max_y,max_z = self.create_cube(filtered_ponts,1)
+        if min_total_x == None:
+            return None
+        flat_surface_polygons=[]
+        polygon = []
+        polygon2=[]
+        scanner =np.full((max_x+1,max_y+1), 9)
+        scanner[...]=-1
+        for i in range(max_x+1):
+            for j in range(max_y+1):
+                for z in range(max_z, -1, -1):
+                    if cube[z][i][j] >= 1:
+                        scanner[i][j] = z
+        print(scanner)
+        print("#=========")
+        for x in range(len(scanner)):
+            array = []
+            for y in range(len(scanner[x])):
+                if scanner[x][y] != -1:
+                    array.append([x,y])
+            if len(array) >= 2:
+                for poi in p:
+                    if poi.world_pixal_xy == [array[0][0]+min_total_x,array[0][1]+min_total_y]:
+                        polygon.append(poi)
+                    if poi.world_pixal_xy == [array[-1][0]+min_total_x,array[-1][1]+min_total_y]:
+                        polygon2.append(poi)
+            elif len(array) == 1:
+                for poi in p:
+                    if poi.world_pixal_xy == [array[0][0]+min_total_x,array[0][1]+min_total_y]:
+                        polygon.append(poi)
+        if len(polygon) > 2 and len(polygon2) > 0:
+            flat_surface_polygons.append(polygon+polygon2[::-1])
+
+        print(flat_surface_polygons)
+        return flat_surface_polygons
+
+
+
+    def create_cube(self,points,checkNmber=None):
+        x,y,z=[],[],[]
+        if len(points) < 5 and checkNmber != None:
+            return None , None , None , None ,None,None,None
+        for data in points:
+            x.append(data.world_pixal_xy[0])
+            y.append(data.world_pixal_xy[1])
+            z.append(data.height)
+        min_total_x , min_total_y , min_total_z = min(x),min(y),int(max(z))
+        min_x,min_y,min_z,max_x,max_y,max_z=int(min(x)-min(x)),int(min(y)-min(y)),int(min(z)-min(z)),int(max(x)-min(x)),int(max(y)-min(y)),int(max(z)-min(z))
+        cube = np.full((max_z+1, max_x+1,max_y+1 ),-1)
+        cube[...] = -1
+        for data in points:
+            cube[int((data.height)-min(z))][int(data.world_pixal_xy[0]-min(x))][int(data.world_pixal_xy[1]-min(y))]=1
+        return cube , min_total_x , min_total_y , min_total_z ,max_x,max_y,max_z
+
+
+    
+
+
+
+    def get_fov_4326(self):
+        if self.view_area == None :
+            return None
+        
+        transformer = Transformer.from_crs("epsg:3857" , "epsg:4326")
+        square_4326 = []
+        for p in range(len(self.view_area)):
+            x,y = transformer.transform(self.view_area[p][0], self.view_area[p][1])
+            square_4326.append([x,y])
+        return square_4326
+
+
+
+
+
+class ConvexHull():
+
+    class POINT():
+        def __init__(self,x,y):
+            self.x = x
+            self.y = y
+  
+    def Left_index(self,points): 
+        minn = 0
+        for i in range(1,len(points)): 
+            if points[i].x < points[minn].x: 
+                minn = i 
+            elif points[i].x == points[minn].x: 
+                if points[i].y > points[minn].y: 
+                    minn = i 
+        return minn 
+    
+    def orientation(self,p, q, r): 
+        ''' 
+        To find orientation of ordered triplet (p, q, r).  
+        The function returns following values  
+        0 --> p, q and r are colinear  
+        1 --> Clockwise  
+        2 --> Counterclockwise  
+        '''
+        val = (q.y - p.y) * (r.x - q.x) - (q.x - p.x) * (r.y - q.y) 
+    
+        if val == 0: 
+            return 0
+        elif val > 0: 
+            return 1
+        else: 
+            return 2
+    
+    def convexHull(self,points, n): 
+        if n < 3: 
+            return
+        l = self.Left_index(points) 
+    
+        hull = [] 
+        p = l 
+        q = 0
+        while(True): 
+            hull.append(p) 
+            q = (p + 1) % n 
+    
+            for i in range(n): 
+                if(self.orientation(points[p],  
+                            points[i], points[q]) == 2): 
+                    q = i 
+            p = q 
+            if(p == l): 
+                break
+        output = []
+        for each in hull:
+            output.append([points[each].x, points[each].y]) 
+            print(points[each].x, points[each].y)
+        return output 
+
+
+    def main(self,inputpoints):
+        points = []
+        for p in inputpoints: 
+            points.append(self.POINT(p[0], p[1])) 
+        return self.convexHull(points, len(points)) 
+  
 

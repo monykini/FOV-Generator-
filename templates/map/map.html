@@ -9,6 +9,9 @@
 <body>
 <link href='https://api.mapbox.com/mapbox-gl-js/v2.0.0/mapbox-gl.css' rel='stylesheet' />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css" integrity="sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2" crossorigin="anonymous">
+<script src="//cdn.jsdelivr.net/npm/alertifyjs@1.13.1/build/alertify.min.js"></script>
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/alertifyjs@1.13.1/build/css/alertify.min.css"/>
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/alertifyjs@1.13.1/build/css/themes/bootstrap.min.css"/>
 <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.5.1/mapbox-gl-geocoder.min.js"></script>
 <script src= "https://api.mapbox.com/mapbox-gl-js/v1.12.0/mapbox-gl.js" ></script>
 <script src="https://api.tiles.mapbox.com/mapbox.js/plugins/turf/v3.0.11/turf.min.js" ></script>
@@ -26,12 +29,79 @@
 </style>
 
 
-<button class="btn btn-primary calculate" onclick="tile_request()">Calculate Area</button>
+<button class="btn btn-primary neonButton calculate" onclick="show('areaForm')" >Calculate Area</button>
 <div id="map"></div>
 
 
+<div class="container overlay areaForm">
+    <div class="row my-5 wrapper mx-auto"  style="width: 30vw;">
+        <form id = 'areaForm' class="mx-auto" style="width: 100%;">
+            <div class="form-group">
+              <label for="area">Search area (meter square)</label>
+              <input type="number" class="form-control" id="area" name='area'  placeholder="Enter area m2" value="200">
+            </div>
+            <input type="text" name="lonlat" id="lonlat" hidden>
+            <button type="button" class="btn btn-primary neonButton mx-1" onclick="tile_request()">Submit</button>
+            <button type="button" class="btn btn-danger mx-1" onclick="hide('areaForm')">Close</button>
+        </form>
+    </div>
+</div>
+
+<div class="container overlay-summary">
+    <div class="row wrapper ">
+        <h5 class="mx-auto text-nowrap font-weight-bold mb-3"> Flat area summary </h5>
+        <div class="col-lg-12 ">
+            <table class="" id='flatSurfaceSumary'>
+                <tr class="mb-2">
+                    <td class="text-left font-weight-bold text-nowrap"># of Points</td>
+                    <td class="text-right" id="pointsSummary">0</td>
+                </tr>
+                <tr class="mb-2">
+                    <td class="text-left font-weight-bold text-nowrap">Fov Area</td>
+                    <td class="text-right" id="fovAreaSummary">0 m2</td>
+                </tr>
+                <tr class="mb-2">
+                    <td class="text-left font-weight-bold text-nowrap">Visibility</td>
+                    <td class="text-right">100%</td>
+                </tr>
+                <tr class="mb-2">
+                    <td class="text-left font-weight-bold text-nowrap">Flat surface area</td>
+                    <td class="text-right" id="flatSurfaceSummary">0 m2</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+</div>
+
 <script>
-var lnglat;
+alertify.set('notifier','position', 'top-center');
+var markers01=[];
+var lnglat=[];
+
+function show(data){
+    if(data === "areaForm"){
+        if(lnglat.length < 1){
+            alertify.error("No point is selected")
+        }
+        else{
+            $(`.${data}`).show()
+        }
+    }
+    else{
+        $(`.${data}`).show()
+    }
+
+}
+
+function hide(data){
+    $(`.${data}`).hide()
+
+    if(data === "areaForm"){
+        $('#areaForm')[0].reset();
+    }
+}
+
+
 $.ajaxSetup({
   headers: { "X-CSRFToken": '{{csrf_token}}' }
 });
@@ -40,7 +110,8 @@ mapboxgl.accessToken = 'pk.eyJ1IjoibW9ueWtpbmkxMTEiLCJhIjoiY2tmeWE2ZmZzMjMzczJwc
     var map = new mapboxgl.Map({
         container: 'map',
         style:        'mapbox://styles/monykini111/ckfzugdmf1ftk1alpt0whio6d',
-        center: [73.0501, 33.7077],
+        // [73.0501, 33.7077],
+        center: [-73.97049764067823,40.76466662545835],
         zoom: 12,
         pitch: 45,
         bearing: -17.6,
@@ -63,149 +134,185 @@ currentMarkers.push(marker);
 
 });
 function tile_request(){
-    con = confirm("do you want to clculate FOV for the following Marker?")
-if(con){
-    console.log(lnglat['lat'])
+
+    latlon = JSON.stringify([lnglat['lat'],lnglat['lng']])
+    console.log($('#areaForm [name = area]').val())
+    $('#areaForm [name = lonlat]').val(latlon)
     $.ajax({
         type:"post",
         url: "{% url 'map' %}",
-        data: {lati:lnglat['lat'],loni:lnglat['lng']},
+        data: $('#areaForm').serialize(),
         success: function(result){
-            var data1 = result.data
-            console.log(data1 )
-            try{
-                map.removeLayer('park-boundary');
-                map.removeSource('national-park')
-            }
-            catch{
-
-            }
-            try{
-                map.removeLayer('lol2');
-                map.removeSource('lol')
-            }
-            catch{
-
-            }
-            
-            add_hexagons(data1)
-            console.log(result.square)
-            create_square(result.square)
+            create_square(JSON.stringify(result.flatSurfaces).replace('\'','"'))
+            create_hexas(JSON.stringify(result.Hexas).replace('\'','"'))
+            console.log(JSON.stringify(result.flatSurfaces))
+            hide('areaForm')
+            alertify.success('Area calculated')
         },
         error:function(data){
-            alert('error')
+            alertify.error('We failed to get data please try again')
         }
     })
-}
+
 }
  map.addControl(
-        new MapboxGeocoder({
-            accessToken: mapboxgl.accessToken,
-            mapboxgl: mapboxgl
+    new MapboxGeocoder({
+        accessToken: mapboxgl.accessToken,
+        mapboxgl: mapboxgl
         })
     );
-    map.on('load', function () {
-        // Insert the layer beneath any symbol layer.
-        var layers = map.getStyle().layers;
 
-        var labelLayerId;
-        for (var i = 0; i < layers.length; i++) {
-            if (layers[i].type === 'symbol' && layers[i].layout['text-field']) {
-                labelLayerId = layers[i].id;
-                break;
-            }
+map.on('load', function () {
+
+    // Insert the layer beneath any symbol layer.
+    var layers = map.getStyle().layers;
+
+    var labelLayerId;
+    for (var i = 0; i < layers.length; i++) {
+        if (layers[i].type === 'symbol' && layers[i].layout['text-field']) {
+            labelLayerId = layers[i].id;
+            break;
         }
+    }
 
-        map.addLayer(
-            {
-                'id': '3d-buildings',
-                'source': 'composite',
-                'source-layer': 'building',
-                'filter': ['==', 'extrude', 'true'],
-                'type': 'fill-extrusion',
-                'minzoom': 15,
-                'paint': {
-                    'fill-extrusion-color': '#aaa',
+    map.addLayer(
+        {
+            'id': '3d-buildings',
+            'source': 'composite',
+            'source-layer': 'building',
+            'filter': ['==', 'extrude', 'true'],
+            'type': 'fill-extrusion',
+            'minzoom': 15,
+            'paint': {
+                'fill-extrusion-color': '#aaa',
 
-                    // use an 'interpolate' expression to add a smooth transition effect to the
-                    // buildings as the user zooms in
-                    'fill-extrusion-height': [
-                        'interpolate',
-                        ['linear'],
-                        ['zoom'],
-                        15,
-                        0,
-                        15.05,
-                        ['get', 'height']
-                    ],
-                    'fill-extrusion-base': [
-                        'interpolate',
-                        ['linear'],
-                        ['zoom'],
-                        15,
-                        0,
-                        15.05,
-                        ['get', 'min_height']
-                    ],
-                    'fill-extrusion-opacity': 0.6
-                }
-            },
-            labelLayerId
-        );
+                // use an 'interpolate' expression to add a smooth transition effect to the
+                // buildings as the user zooms in
+                'fill-extrusion-height': [
+                    'interpolate',
+                    ['linear'],
+                    ['zoom'],
+                    15,
+                    0,
+                    15.05,
+                    ['get', 'height']
+                ],
+                'fill-extrusion-base': [
+                    'interpolate',
+                    ['linear'],
+                    ['zoom'],
+                    15,
+                    0,
+                    15.05,
+                    ['get', 'min_height']
+                ],
+                'fill-extrusion-opacity': 0.6
+            }
+        },
+        labelLayerId
+    );
     });
 
-function add_hexagons(data){
-    map.addSource('national-park', {
+
+function create_hexas(data){
+
+    console.log(JSON.parse(data))
+
+    try{
+        map.removeLayer('HexaLayer');
+        map.removeSource('HexaSource')
+    }
+    catch{
+        
+    }
+    map.addSource('HexaSource', {
     'type': 'geojson',
-    'data':data
+    'data':JSON.parse(data)
+    });
+
+    map.addLayer({
+    'id': 'HexaLayer',
+    'type': 'fill',
+    'source': 'HexaSource',
+    'paint': {
+    'fill-color': '#ffffff',
+    'fill-opacity': 0.4
+    },
+    'filter': ['==', '$type', 'Polygon']
+    });
+}
+
+
+function create_square(data){
+
+    try{
+        map.removeLayer('flatSurfaceLayer');
+        map.removeSource('flatSurfaceSource')
+    }
+    catch{
+        
+    }
+    map.addSource('flatSurfaceSource', {
+    'type': 'geojson',
+    'data':JSON.parse(data)
+    });
+
+    map.addLayer({
+    'id': 'flatSurfaceLayer',
+    'type': 'fill',
+    'source': 'flatSurfaceSource',
+    'paint': {
+    'fill-color': '#3342FF',
+    'fill-opacity': 1
+    },
+    'filter': ['==', '$type', 'Polygon']
+    });
+    map.on('click', 'flatSurfaceLayer', function (e) {
+    // new mapboxgl.Popup()
+    // .setLngLat(e.lngLat)
+    // .setHTML("<p>average height: "+e.features[0].properties.fov+"</p>")
+    // .addTo(map);
+
+    try{
+        map.removeLayer('povLayer');
+        map.removeSource('povSorce')
+    }
+    catch{
+
+    }
+
+
+    map.addSource('povSorce', {
+    'type': 'geojson',
+    'data':JSON.parse(e.features[0].properties.fov)
     });
     map.addLayer({
-    'id': 'park-boundary',
+    'id': 'povLayer',
     'type': 'fill',
-    'source': 'national-park',
+    'source': 'povSorce',
     'paint': {
-    'fill-color': '#F08080',
+    'fill-color': '#800000',
     'fill-opacity': 0.6
     },
     'filter': ['==', '$type', 'Polygon']
     });
 
-    map.on('click', 'park-boundary', function (e) {
-    new mapboxgl.Popup()
-    .setLngLat(e.lngLat)
-    .setHTML("<p>average height: "+e.features[0].properties.avgheight+"</p> <br> <p>Flatness: "+ e.features[0].properties.flatness +"</p><br> <p>Points: "+ e.features[0].properties.points +"</p> <br> <p>x: "+ e.features[0].properties.x +"</p><br> <p>y: "+ e.features[0].properties.y +"</p>")
-    .addTo(map);
-    console.log(e.features[0].properties.triangles)
+    $('#fovAreaSummary').text((e.features[0].properties.fovArea).toFixed(2));
+    $('#pointsSummary').text(e.features[0].properties.points);
+    $('#flatSurfaceSummary').text((e.features[0].properties.area).toFixed(2));
+
     });
-    
+
     // Change the cursor to a pointer when the mouse is over the states layer.
-    map.on('mouseenter', 'park-boundary', function () {
+    map.on('mouseenter', 'flatSurfaceLayer', function () {
     map.getCanvas().style.cursor = 'pointer';
     });
     
     // Change it back to a pointer when it leaves.
-    map.on('mouseleave', 'park-boundary', function () {
+    map.on('mouseleave', 'flatSurfaceLayer', function () {
     map.getCanvas().style.cursor = '';
     });
- 
 
-}
-
-function create_square(data){
-    map.addSource('lol', {
-    'type': 'geojson',
-    'data':data
-    });
-    map.addLayer({
-    'id': 'lol2',
-    'type': 'fill',
-    'source': 'lol',
-    'paint': {
-    'fill-color': '#3342FF',
-    'fill-opacity': 0.6
-    },
-    'filter': ['==', '$type', 'Polygon']
-    });
 }
 
 
@@ -213,8 +320,3 @@ function create_square(data){
 
 </body>
 </html>
-
-
-
-
-

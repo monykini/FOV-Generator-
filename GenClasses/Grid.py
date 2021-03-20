@@ -1,80 +1,140 @@
 import math
+import json
 from shapely.geometry import Point, Polygon, LineString
-from .Shapes import Hexa , Points , userMarker
+from pyproj import Transformer
+from .Shapes import Hexa , Points , userMarker , flatSurface , FOV
+from generator.models import modelHexas,modelUserMarker,modelPoint,modelFOV,modelFlatSurface,buildingData
+from django.contrib.gis import geos
+from .Tiles import latlon_to_pixal_Converter
 
 class hexaGrid():
-    """
-    creates a hexagrid \n
-    hexaGrid(userMarker)
-    methods: \n
-    calculate_grid(self) :- creates a hexagrid
-    Mapper(self,tilesArray) :- takes tilesArray form tile_gather class and maps each point to respective hexa in grid
-    """
-    def __init__(self,userMarker):
-        self.hexas = []
-        self.userMarker = userMarker
-        self.sideLength = 28.868
-
-    def calculate_grid(self):
         """
-        returns an array of Points describing hexagons centers that are inside the given bounding_box \n
-        :return: The hexagon grid \n
+        creates a hexagrid \n
+        hexaGrid(userMarker)
+        methods: \n
+        calculate_grid(self) :- creates a hexagrid
+        Mapper(self,tilesArray) :- takes tilesArray form tile_gather class and maps each point to respective hexa in grid
         """
-        grid = []
+        def __init__(self,userMarker):
+                self.hexas = []
+                self.userMarker = userMarker
+                self.sideLength = 28.868
+                self.flat_surfaces = []
+                self.calculate_grid()
 
-        v_step = math.sqrt(3) * self.sideLength
-        h_step = 1.5 * self.sideLength
+        def calculate_grid(self):
+                """
+                returns an array of Points describing hexagons centers that are inside the given bounding_box \n
+                :return: The hexagon grid \n
+                """
+                grid = []
 
-        x_min = self.userMarker.square[3][0]
-        x_max = self.userMarker.square[1][0]
-        y_min = self.userMarker.square[1][1]
-        y_max = self.userMarker.square[3][1]
-        # print(x_min , x_max , y_max , y_min)
+                v_step = math.sqrt(3) * self.sideLength
+                h_step = 1.5 * self.sideLength
 
-        h_skip = math.ceil(x_min / h_step) - 1
-        h_start = h_skip * h_step
 
-        v_skip = math.ceil(y_min / v_step) - 1
-        v_start = v_skip * v_step
+                bbox = list(self.userMarker.get_square().exterior.coords)
 
-        h_end = x_max + h_step
-        v_end = y_max + v_step
+                x_min = bbox[3][0]
+                x_max = bbox[1][0]
+                y_min = bbox[1][1]
+                y_max = bbox[3][1]
 
-        if v_start - (v_step / 2.0) < y_min:
-                v_start_array = [v_start + (v_step / 2.0), v_start]
-        else:
-                v_start_array = [v_start - (v_step / 2.0), v_start]
 
-        v_start_idx = int(abs(h_skip) % 2)
+                h_skip = math.ceil(x_min / h_step) - 1
+                h_start = h_skip * h_step
 
-        c_x = h_start
-        c_y = v_start_array[v_start_idx]
-        v_start_idx = (v_start_idx + 1) % 2
-        # transformer = Transformer.from_crs("epsg:3857", "epsg:4326")
-        x = 0
-        while c_x < h_end:
-                y = 0
-                while c_y < v_end:
-                        # c_x1, c_y1=transformer.transform(c_x, c_y)
-                        hexa = Hexa([c_x, c_y],x=x,y=y)
-                        print(hexa.x)
-                        grid.append(hexa)
-                        c_y += v_step
-                        y+=1
-                c_x += h_step
+                v_skip = math.ceil(y_min / v_step) - 1
+                v_start = v_skip * v_step
+
+                h_end = x_max + h_step
+                v_end = y_max + v_step
+
+                if v_start - (v_step / 2.0) < y_min:
+                        v_start_array = [v_start + (v_step / 2.0), v_start]
+                else:
+                        v_start_array = [v_start - (v_step / 2.0), v_start]
+
+                v_start_idx = int(abs(h_skip) % 2)
+
+
+                c_x = h_start
                 c_y = v_start_array[v_start_idx]
                 v_start_idx = (v_start_idx + 1) % 2
-                x+=1
-        self.hexas = grid
-        return grid
+                transformer = Transformer.from_crs("epsg:3857", "epsg:4326")
+                x = 0
+                while c_x < h_end:
+                        y = 0
+                        while c_y < v_end:
+                                c_x1, c_y1=transformer.transform(c_x, c_y)
+                                hexa = Hexa([c_x, c_y],x=x,y=y)
+                                macpoint = geos.Point(c_y, c_x)
+                                wsg48point = geos.Point(c_y1, c_x1)
+                                wsg48Polygon = geos.Polygon(tuple([tuple(i[::-1])  for i in list(hexa.get_sides_4326().exterior.coords)]))
+                                macpolygon = geos.Polygon(tuple([tuple(i[::-1])  for i in list(hexa.create_hexagon().exterior.coords)]))
+                                modelhex = modelHexas(marker = modelUserMarker.objects.get(id=self.userMarker.id) ,wsg48polygon = wsg48Polygon , macpolygon= macpolygon , maccenter=macpoint , wsg48center = wsg48point)
+                                modelhex.save()
+                                hexa.id = modelhex.id
+                                grid.append(hexa)
+                                c_y += v_step
+                                y+=1
+                        c_x += h_step
+                        c_y = v_start_array[v_start_idx]
+                        v_start_idx = (v_start_idx + 1) % 2
+                        x+=1
+                self.hexas = grid
+                return grid
 
-    def Mapper(self,tilesArray):
-        temp=[]
-        for data in tilesArray:
-            for hexa in self.hexas:
-                # print(hexa.create_hexagon())
-                if Point(data.mac_latlon[0],data.mac_latlon[1]).within(hexa.create_hexagon()):
-                        hexa.points.append(data)
-                        # print(data)
-            
-        return temp
+
+        def Mapper(self):
+                temp=[]
+                marker = modelUserMarker.objects.get(id=self.userMarker.id)
+                for hexa in self.hexas:
+                        hexi = modelHexas.objects.get(id = hexa.id)
+                        buildings = buildingData.objects.filter(geom__intersects = hexi.wsg48polygon)
+                        points = modelPoint.objects.filter(wsg48Point__intersects=hexi.wsg48polygon)
+                        lytes = {}
+                        for b in buildings:
+                                p = points.filter(wsg48Point__intersects = b.geom)
+                                for pi in p:
+                                        lytes[pi.id] = b.height
+                        for point in points:
+                                data = Points(list(point.wsg48Point.coords)[::-1], list(point.macPoint.coords)[::-1] , json.loads(point.pixal_xy) , json.loads(point.world_pixal_xy) , point.height+lytes.get(point.id,0) , json.loads(point.color))
+                                hexa.points.append(data)
+                self.assign_falt_surfaces()        
+                return temp
+
+        def assign_falt_surfaces(self):
+                marker = modelUserMarker.objects.get(id=self.userMarker.id)
+                converter = latlon_to_pixal_Converter()
+                markerx,markery = converter.LatLongToPixelXYOSM(self.userMarker.latlon[0],self.userMarker.latlon[1],15)
+                print(markerx,markery)
+                markerBuilding = 0
+                markerPoint = modelPoint.objects.get(world_pixal_xy = json.dumps([markerx,markery]))
+                if buildingData.objects.filter(geom__intersects = markerPoint.wsg48Point).exists():
+                        markerBuilding =  buildingData.objects.filter(geom__intersects = markerPoint.wsg48Point)[0].height
+                self.userMarker.Height = markerPoint.height + markerBuilding
+                for hexa in self.hexas:
+                        hexa.beta_flatness()
+                        i=0
+                        for flatpoints in hexa.falt_sufrace_points:
+                                flat_Surface = flatSurface(flatpoints,hexa)
+                                flat_Surface.insidePoints = hexa.falt_sufrace_allPoints[i]
+                                flat_Surface.get_area_flat_surface()
+                                if flat_Surface.area >= 405.95:
+                                        fov  = FOV()
+                                        fov.create_fov(flat_Surface.center  , self.userMarker.get_latlonMac()) #612022
+                                        if (fov.height >= 100 and fov.height <=4000) and (flat_Surface.modeHeight >= self.userMarker.Height) :
+                                                # fov.get_obstruction(flat_Surface.insidePoints,flat_Surface.modeHeight,self.userMarker)
+                                                flat_Surface.fov = fov
+                                                wsg48polygon = Polygon(tuple([tuple(li[::-1]) for li in flat_Surface.get_sides_4326()]))
+                                                macpolygon = Polygon(tuple([tuple(li[::-1]) for li in flat_Surface.get_sides_mac()]))
+                                                FS = modelFlatSurface(marker = marker ,wsg48polygon =geos.Polygon(tuple(wsg48polygon.exterior.coords)) ,macpolygon= geos.Polygon(tuple(macpolygon.exterior.coords)))
+                                                FS.save()
+                                                wsg48polygon = Polygon(tuple([tuple(li[::-1]) for li in fov.get_fov_4326()]))
+                                                macpolygon = Polygon(tuple([tuple(li[::-1]) for li in fov.view_area]))
+                                                F_O_V = modelFOV(flatSurface=FS,wsg48polygon=geos.Polygon(tuple(wsg48polygon.exterior.coords)),macpolygon=geos.Polygon(tuple(macpolygon.exterior.coords)),height=fov.height)
+                                                F_O_V.save()
+                                                self.flat_surfaces.append(flat_Surface)
+                                i+=1
+                return self.flat_surfaces

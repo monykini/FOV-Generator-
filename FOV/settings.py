@@ -6,7 +6,7 @@ import os
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-
+print(BASE_DIR)
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.1/howto/deployment/checklist/
 
@@ -27,7 +27,10 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'django.contrib.gis',
     'django.contrib.staticfiles',
+    'generator',
+    'raster',
 ]
 
 MIDDLEWARE = [
@@ -68,9 +71,13 @@ WSGI_APPLICATION = 'FOV.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
-    }
+        'ENGINE': 'django.contrib.gis.db.backends.postgis',
+        'NAME': 'fov',
+        'USER': 'postgres',
+        'PASSWORD': '123456789',
+        'HOST': 'localhost',
+        'PORT': '',
+    },
 }
 
 
@@ -118,3 +125,16 @@ STATIC_ROOT = os.path.join(os.path.dirname(BASE_DIR), 'static_cdn' , 'static_roo
 MEDIA_ROOT = os.path.join(os.path.dirname(BASE_DIR), 'media_cdn' , 'media_root')
 
 
+# data directories
+
+PROCESSED_TILES_DIRECTORY_NAME = 'processedTiles'
+PROCESSED_TILES_DIRECTORY = os.path.join(str(os.path.join(BASE_DIR)), 'processedTiles')
+
+
+Islamabad_bbox={"min_lat":72.818069,"max_lat":73.383865 , "min_lon":33.496170 , "max_lon":33.807679 }
+Islamabad_bbox_square=[[33.496170,72.818069],[33.496170,73.383865],[33.807679,72.818069],[33.807679,73.383865]]
+
+if os.name == 'nt':
+    VENV_BASE = os.environ['VIRTUAL_ENV']
+    os.environ['PATH'] = os.path.join(VENV_BASE, 'Lib\\site-packages\\osgeo') + ';' + os.environ['PATH']
+    os.environ['PROJ_LIB'] = os.path.join(VENV_BASE, 'Lib\\site-packages\\osgeo\\data\\proj') + ';' + os.environ['PATH']
