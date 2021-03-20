@@ -93,6 +93,7 @@ class Hexa():
                 self.y = value
         self.create_hexagon()
         
+
     @jit
     def create_cube(self,points , checkNmber = None):
         x,y,z=[],[],[]

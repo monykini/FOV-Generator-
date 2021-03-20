@@ -144,7 +144,10 @@ function tile_request(){
         data: $('#areaForm').serialize(),
         success: function(result){
             create_square(JSON.stringify(result.flatSurfaces).replace('\'','"'))
+<<<<<<< HEAD
             create_hexas(JSON.stringify(result.Hexas).replace('\'','"'))
+=======
+>>>>>>> 5af725b810392094150eaa414f1a7166fe33113e
             console.log(JSON.stringify(result.flatSurfaces))
             hide('areaForm')
             alertify.success('Area calculated')
@@ -214,6 +217,7 @@ map.on('load', function () {
     });
 
 
+<<<<<<< HEAD
 function create_hexas(data){
 
     console.log(JSON.parse(data))
@@ -221,16 +225,28 @@ function create_hexas(data){
     try{
         map.removeLayer('HexaLayer');
         map.removeSource('HexaSource')
+=======
+function create_square(data){
+
+    try{
+        map.removeLayer('flatSurfaceLayer');
+        map.removeSource('flatSurfaceSource')
+>>>>>>> 5af725b810392094150eaa414f1a7166fe33113e
     }
     catch{
         
     }
+<<<<<<< HEAD
     map.addSource('HexaSource', {
+=======
+    map.addSource('flatSurfaceSource', {
+>>>>>>> 5af725b810392094150eaa414f1a7166fe33113e
     'type': 'geojson',
     'data':JSON.parse(data)
     });
 
     map.addLayer({
+<<<<<<< HEAD
     'id': 'HexaLayer',
     'type': 'fill',
     'source': 'HexaSource',
@@ -281,6 +297,34 @@ function create_square(data){
 
     }
 
+=======
+    'id': 'flatSurfaceLayer',
+    'type': 'fill',
+    'source': 'flatSurfaceSource',
+    'paint': {
+    'fill-color': '#3342FF',
+    'fill-opacity': 0.6
+    },
+    'filter': ['==', '$type', 'Polygon']
+    });
+    console.log(map.getStyle().layers)
+    console.log(JSON.parse(data))
+    map.on('click', 'flatSurfaceLayer', function (e) {
+    // new mapboxgl.Popup()
+    // .setLngLat(e.lngLat)
+    // .setHTML("<p>average height: "+e.features[0].properties.fov+"</p>")
+    // .addTo(map);
+
+    try{
+        map.removeLayer('povLayer');
+        map.removeSource('povSorce')
+    }
+    catch{
+
+    }
+
+    console.log(e.features[0].properties)
+>>>>>>> 5af725b810392094150eaa414f1a7166fe33113e
 
     map.addSource('povSorce', {
     'type': 'geojson',
