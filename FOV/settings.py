@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     'django.contrib.gis',
     'django.contrib.staticfiles',
     'generator',
+    'users',
     'raster',
 ]
 

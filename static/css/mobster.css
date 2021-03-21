@@ -26,7 +26,8 @@ body {
   font-family: 'Quicksand', Arial, Helvetica, sans-serif;
   font-size: 16px;
   line-height: 1.7;
-  color: #383340;
+  color: #bbadd2;
+  background: #2f2f2f ;
 }
 
 a {
@@ -66,6 +67,17 @@ h6, .h6 {
   font-size: 1rem;
 }
 
+.form-control{
+  background: #544c5f;
+  color: white;
+}
+.form-control:focus {
+  color: white;
+  background: #544c5f;
+  border-color: #544c5f;
+  outline: 0;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
 hr {
   border-color: #E4E1EB;
 }
@@ -2150,7 +2162,7 @@ hr {
 .page-section:not(.fg-white) h1,
 .page-section:not(.fg-white) h2,
 .page-section:not(.fg-white) h3 {
-  color: #6b6872;
+  color: #bbadd2;
 }
 
 

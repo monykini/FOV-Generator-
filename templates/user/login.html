@@ -1,0 +1,54 @@
+{% extends 'base/homebase.html' %}
+
+
+{% block content %}
+<section class="pt-5 row mx-0 align-items-center h-100" style="min-height: 100vh;">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-6">
+                <div class="login-wrap p-4 p-md-5">
+                    <div class="icon d-flex align-items-center justify-content-center">
+                        <span class="fa fa-user-o my-5" style="font-size: 75px;"></span>
+                    </div>
+                    <form action="" class="login-form" id='login-form' method="post">
+                        {% csrf_token %}
+                        {% if form.non_field_errors %}
+                          {% for error in form.non_field_errors %}
+                            <label class="text-danger">{{ error }}</label>
+                          {% endfor %}
+                        {% endif %}
+                        {% for error in form.username.errors %}
+                        <div class="alert alert-danger">
+                            <strong>{{ error|escape }} </strong>
+                        </div>
+                        {% endfor %}
+                        <div class="form-group">
+
+                            {{form.username}}
+                        </div>
+                        {% for error in form.password.errors %}
+                        <div class="alert alert-danger">
+                            <strong>{{ error|escape }} </strong>
+                        </div>
+                        {% endfor %}
+                        <div class="form-group d-flex">
+
+                            {{form.password}}
+                        </div>
+                        <div class="form-group d-md-flex">
+                            <div class="w-50 text-md-right">
+                                <a href="#">Forgot Password</a>
+                            </div>
+                        </div>
+                        <div class="row justify-content-center">
+                            <button type="submit" class="btn btn-dark rounded-pill submit p-3 px-5 mx-1">Login</button>
+                            <h6 class="font-weight-bold py-3 mx-1"> OR </h6>
+                            <a href="{% url 'registartion' %}" class="btn btn-dark rounded-pill p-3 px-5 mx-1">Get Account</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
