@@ -1,0 +1,197 @@
+{% load static%}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script><script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js" integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/js/bootstrap.min.js" integrity="sha384-w1Q4orYjBQndcko6MimVbzY0tgp4pWB4lZ7lr30WKz0vr/aWKhXdBNmNb5D92v7s" crossorigin="anonymous"></script>
+    <script src="{% static 'js/noice.js'  %}"></script>
+    <script crossorigin src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+
+</head>
+<body>
+</body>
+
+<script>
+
+</script>
+
+<script type="module">
+
+var my_var = '{{ points|escapejs }}';
+var my_var_parsed = jQuery.parseJSON(my_var)
+// console.log(my_var_parsed)
+
+// Find the latest version by visiting https://unpkg.com/three.
+import * as THREE from 'https://unpkg.com/three@0.126.1/build/three.module.js';
+import Stats from 'https://unpkg.com/three@0.126.1/examples/jsm/libs/stats.module.js';
+import { GUI } from 'https://unpkg.com/three@0.126.1/examples/jsm/libs/dat.gui.module.js';
+import { OrbitControls } from 'https://unpkg.com/three@0.126.1/examples/jsm/controls/OrbitControls.js';
+// import { Ocean } from 'https://unpkg.com/three@0.126.1/examples/jsm/misc/Ocean.js';
+import { Water } from 'https://unpkg.com/three@0.126.1/examples/jsm/objects/Water2.js';
+import { Sky } from 'https://unpkg.com/three@0.126.1/examples/jsm/objects/Sky.js';
+import { VertexNormalsHelper } from 'https://unpkg.com/three@0.126.1/examples/jsm/helpers/VertexNormalsHelper.js';
+import { RectAreaLightHelper } from 'https://unpkg.com/three@0.126.1/examples/jsm/helpers/RectAreaLightHelper.js';
+import { ImprovedNoise } from 'https://unpkg.com/three@0.126.1/examples/jsm/math/ImprovedNoise.js';
+const worldWidth = 10, worldDepth = 10;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize( window.innerWidth, window.innerHeight );
+document.body.appendChild( renderer.domElement );
+
+const geometry = new THREE.PlaneGeometry(100,100,worldWidth-1,worldDepth-1);
+const texture = new THREE.TextureLoader().load("{% static 'img/8081_earthlights10k.jpg' %}" );
+const material = new THREE.MeshBasicMaterial({ map: texture,});
+const cube = new THREE.Mesh( geometry, material );
+cube.geometry.verticesNeedUpdate = true;
+cube.geometry.attributes.position.needsUpdate = true;
+
+var position = geometry.attributes.position.array;
+var normal = geometry.attributes.normal.array;
+
+
+scene.add( cube );      
+   
+
+// camera.lookAt(-10,10,-10)
+
+const controls = new OrbitControls( camera, renderer.domElement );
+// controls.maxDistance=45
+// controls.minDistance=40
+controls.update();
+// controls.enabled=false
+camera.position.z = 50;
+camera.rotation.z = 1.2;
+// controls.enabled=true
+console.log(cube)
+
+
+// light
+
+const light = new THREE.AmbientLight( 0x404040 ); // soft white light
+scene.add( light );
+
+
+//  helpers
+
+const axesHelper = new THREE.AxesHelper( 512 );
+scene.add( axesHelper );
+
+
+const sphereHelper = new THREE.BoxGeometry(10,10,2);
+const objectHelper = new THREE.Mesh( sphereHelper, new THREE.MeshBasicMaterial( 0xff0000 ) );
+const boxHelper = new THREE.BoxHelper( objectHelper, 0xffff00 );
+scene.add( boxHelper );
+
+
+const plane = new THREE.Plane( new THREE.Vector3( 1, 1, 0.2 ), 3 );
+const planeHelper = new THREE.PlaneHelper( plane, 1, 0xffff00 );
+scene.add( planeHelper );
+
+
+// const Vertexhelper = new VertexNormalsHelper( cube, 2, 0x00ff00 , 1 );
+// scene.add( Vertexhelper );
+
+const cameraHelper = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+const helper = new THREE.CameraHelper( cameraHelper );
+helper.position.z = 512;
+scene.add( helper );
+
+
+function changeShape(){
+    var k=100;
+    var time = performance.now() * 0.0005;
+    var index1,index2,index3;
+    for (var i = 0; i < position.length / 3; i++) {
+    index1 = index++
+    index2 = index++
+    index3 = index++
+    vector  = new THREE.Vector3(position[index1], position[index2], position[index3])
+    vector.normalize().multiplyScalar(10 + 2 * noise.perlin3(vector.x * k + time, vector.y * k, vector.z * k));
+    position[index1] = vector.x
+    position[index2] = vector.y
+    position[index3] = vector.z
+    }
+    index = 0
+    cube.geometry.normalsNeedUpdate = true;
+    cube.geometry.computeBoundingBox();
+    cube.geometry.computeBoundingSphere();
+    cube.geometry.computeVertexNormals();
+    // cube.geometry.mergeVertices();
+}
+
+let x, y, z, index;
+x = y = z = index = 0;
+let vector;
+
+var data = generateHeight(worldWidth, worldDepth)
+console.log(my_var_parsed.length)
+function moveCube(){
+    for ( let i = 0, j = 0, l = 100; i < l; i ++, j += 3 ) {
+            position[ j + 2 ] = data[ i ] * 0.01;
+            
+    }
+}
+
+function generateHeight( width, height ) {
+
+    let seed = Math.PI / 4;
+    window.Math.random = function () {
+
+        const x = Math.sin( seed ++ ) * 10000;
+        return x - Math.floor( x );
+
+    };
+
+    const size = width * height, data = new Uint8Array( size );
+    const perlin = new ImprovedNoise(), z = Math.random() * 100;
+
+    let quality = 1;
+
+    for ( let j = 0; j < 4; j ++ ) {
+
+        for ( let i = 0; i < size; i ++ ) {
+
+            const x = i % width, y = ~ ~ ( i / width );
+            data[ i ] += Math.abs( perlin.noise( x / quality, y / quality, z ) * quality * 1.75 );
+
+        }
+
+        quality *= 5;
+
+    }
+
+    return data;
+
+}
+
+
+// changeShape()
+let i=0
+
+moveCube()
+
+const animate = function () {
+    requestAnimationFrame( animate );
+    cube.geometry.attributes.position.needsUpdate = true;
+    // changeShape()
+    // cube.rotation.y+=0.001
+    renderer.render( scene, camera );
+
+};
+
+animate();
+
+</script>
+
+
+</html>

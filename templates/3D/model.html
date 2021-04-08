@@ -69,7 +69,7 @@
             new THREE.MeshBasicMaterial({ color:'grey'  }),   
             ]
             // materials.vertexColors=true
-            const cube = new THREE.Mesh(geometry, materials); 
+            var cube = new THREE.Mesh(geometry, materials); 
 
             console.log(cube);
             cube.geometry.faces[257*2].color.setRGB( Math.random(),Math.random(), Math.random())

@@ -5,6 +5,8 @@ import requests
 from PIL import Image
 import json
 from io import BytesIO
+import django
+django.setup()
 import numpy as np
 from .Shapes import Points
 from shapely.geometry import Point, Polygon, LineString
@@ -14,117 +16,129 @@ from generator.models import modelPoint,modelUserMarker
 from django.contrib.gis.gdal import GDALRaster
 from django.contrib.gis import geos
 from numba import jit , njit
-
-
+from multiprocessing import Pool
+import time
 
 class tileGatherer():
-    """
-    get tiles according to user marker \n
-    tileGatherer(userMarker) \n
-    methods: \n
-    conver_raster_tiles(self) := gets array of points from raster tiles\n
-    get_tiles(self) := gets mercantile tiles numbers  \n
-
-    """
-    def __init__(self,userMarker):
-        self.areaArray = []
-        self.userMarker = userMarker
-        self.converter = latlon_to_pixal_Converter()
+        """
+        get tiles according to user marker \n
+        tileGatherer(userMarker) \n
+        methods: \n
+        conver_raster_tiles(self) := gets array of points from raster tiles\n
+        get_tiles(self) := gets mercantile tiles numbers  \n
+        """
+        def __init__(self,userMarker):
+                self.userMarker = userMarker
+                self.converter = latlon_to_pixal_Converter()
     
 
-    def get_tiles(self):
-        tiles = []
-        square_4326 = self.userMarker
-        for p in square_4326:
-                mercent = mercantile.tile(p[1],p[0],15)
-                tiles.append([mercent.x,mercent.y])
+        def get_tiles(self):
+                tiles = []
+                square_4326 = self.userMarker
+                for p in square_4326:
+                        mercent = mercantile.tile(p[1],p[0],15)
+                        tiles.append([mercent.x,mercent.y])
 
-        x_matrix =  [ p[1] for p in tiles ]
-        y_matrix = [p[0] for p in tiles]
+                x_matrix =  [ p[1] for p in tiles ]
+                y_matrix = [p[0] for p in tiles]
+                
+                x_matrix_max , x_matrix_min = max(x_matrix) , min(x_matrix)
+                y_matrix_max , y_matrix_min = max(y_matrix) , min(y_matrix) 
+
+                total_x_axis_tiles = x_matrix_max-x_matrix_min+1
+                total_y_axis_tiles = y_matrix_max-y_matrix_min+1
+
+                top_left_tile = tiles[0]
+                total_tiles_matrix=[]
+                for x in range(total_x_axis_tiles):
+                        temp=[]
+                        for y in range(total_y_axis_tiles):
+                                temp.append([top_left_tile[0]-y,top_left_tile[1]+x])
+                        total_tiles_matrix.append(temp)
+
+                total_tiles_matrix = total_tiles_matrix[::-1]
+                return total_tiles_matrix
+
+        def check_files(self,total_tiles_matrix):
+
+                remove = []
+                print(total_tiles_matrix)
+                for x in range(len(total_tiles_matrix)):
+                        for y in range(len(total_tiles_matrix[x])):
+                                check = 0
+                                for i in range(0,512,256):
+                                        for j in range(0,512,256):
+                                                x_pixal_world = (i+(512*total_tiles_matrix[x][y][0]))
+                                                y_pixal_world = (j+(512*total_tiles_matrix[x][y][1]))
+                                                lat,lon =  self.converter.PixelXYToLatLongOSM(x_pixal_world,y_pixal_world,15)
+                                                if modelPoint.objects.filter(wsg48Point = geos.Point(lon,lat) ).exists():
+                                                        check += 1
+                                if check >= 3:
+                                        remove.append([x,y])
+                print(remove)
+                for r in remove[::-1]:
+                        del total_tiles_matrix[r[0]][r[1]]
+                return total_tiles_matrix
         
-        x_matrix_max , x_matrix_min = max(x_matrix) , min(x_matrix)
-        y_matrix_max , y_matrix_min = max(y_matrix) , min(y_matrix) 
 
-        total_x_axis_tiles = x_matrix_max-x_matrix_min+1
-        total_y_axis_tiles = y_matrix_max-y_matrix_min+1
+        def get_raster_tiles(self,total_tiles_matrix):
+                filled_tiles_matrix = []
 
-        top_left_tile = tiles[0]
-        total_tiles_matrix=[]
-        for x in range(total_x_axis_tiles):
-                temp=[]
-                for y in range(total_y_axis_tiles):
-                        temp.append([top_left_tile[0]-y,top_left_tile[1]+x])
-                total_tiles_matrix.append(temp)
-
-        total_tiles_matrix = total_tiles_matrix[::-1]
-        return total_tiles_matrix
-
-    def check_files(self,total_tiles_matrix):
-        remove = []
-        print(total_tiles_matrix)
-        for x in range(len(total_tiles_matrix)):
-                for y in range(len(total_tiles_matrix[x])):
-                        check = 0
-                        for i in range(0,512,256):
-                                for j in range(0,512,256):
-                                        x_pixal_world = (i+(512*total_tiles_matrix[x][y][0]))
-                                        y_pixal_world = (j+(512*total_tiles_matrix[x][y][1]))
-                                        lat,lon =  self.converter.PixelXYToLatLongOSM(x_pixal_world,y_pixal_world,15)
-                                        if modelPoint.objects.filter(wsg48Point = geos.Point(lon,lat) ).exists():
-                                                check += 1
-                        if check >= 3:
-                                remove.append([x,y])
-        print(remove)
-        for r in remove[::-1]:
-               del total_tiles_matrix[r[0]][r[1]]
-        return total_tiles_matrix
-        
-
-    def get_raster_tiles(self,total_tiles_matrix):
-        filled_tiles_matrix = []
-
-        for t in total_tiles_matrix:
-                temp=[]
-                for y in t:
-                        req = f'https://api.mapbox.com/v4/mapbox.terrain-rgb/15/{y[0]}/{y[1]}@2x.jpg90?access_token=pk.eyJ1IjoiY29zbW9ib2l5IiwiYSI6ImNrNHN0dmwzZjBwMnkzbHFkM3pvaTBybDQifQ.pfeEvOIWJc60mdHtn8_uAQ'
-                        req = requests.get(req)
-                        image = Image.open(BytesIO(req.content))
-                        data = np.asarray(image)
-                        temp.append(data)
-                filled_tiles_matrix.append(temp)
-
-        return total_tiles_matrix,filled_tiles_matrix
+                for t in total_tiles_matrix:
+                        temp=[]
+                        for y in t:
+                                req = f'https://api.mapbox.com/v4/mapbox.terrain-rgb/15/{y[0]}/{y[1]}@2x.jpg90?access_token=pk.eyJ1IjoiY29zbW9ib2l5IiwiYSI6ImNrNHN0dmwzZjBwMnkzbHFkM3pvaTBybDQifQ.pfeEvOIWJc60mdHtn8_uAQ'
+                                req = requests.get(req)
+                                image = Image.open(BytesIO(req.content))
+                                data = np.asarray(image)
+                                # r = data[..., 0]
+                                # g = data[..., 1]
+                                # b = data[..., 2]
+                                # decoded_data = (256*r + g + b/256) - 32768
+                                # print(decoded_data)
+                                # print('decoded_data')
+                                temp.append(data)
+                        filled_tiles_matrix.append(temp)
+                
+                return total_tiles_matrix,filled_tiles_matrix
 
 
 
-    def conver_raster_tiles(self):
-        if len(self.areaArray) > 0 :
-            return self.areaArray
-        total_tiles_matrix = self.check_files(self.get_tiles())
-        total_tiles_matrix , filled_tiles_matrix  = self.get_raster_tiles(total_tiles_matrix)
-        print(total_tiles_matrix)
-        transformer = Transformer.from_crs("epsg:4326", "epsg:3857")
+        def conver_raster_tiles(self):
+                # total_tiles_matrix = self.check_files(self.get_tiles())
+                t1 = time.perf_counter()
+                total_tiles_matrix = self.get_tiles()
+                total_tiles_matrix , filled_tiles_matrix  = self.get_raster_tiles(total_tiles_matrix)
+                pool = Pool(processes=10)
+                for x in range(len(total_tiles_matrix)):
+                        for y in range(len(total_tiles_matrix[x])):
+                                pools=[]
+                                for k in range(16):
+                                        print(32*k,(32*(k+1)))
+                                        pools.append(pool.apply_async(self.decode_tile, args=(total_tiles_matrix[x][y],32*k,(32*(k+1)),filled_tiles_matrix[x][y])))
+                                for k in range(16):
+                                        pools[k].wait()
+                t2 = time.perf_counter()
+                print(f"{t2-t1} Seconds")
 
-        for x in range(len(total_tiles_matrix)):
-                for y in range(len(total_tiles_matrix[x])):
-                        for i in range(512):
-                                for j in range(512):
-                                        x_pixal_world = (i+(512*total_tiles_matrix[x][y][0]))
-                                        y_pixal_world = (j+(512*total_tiles_matrix[x][y][1]))
-                                        x_pixal=i+(x*512)
-                                        y_pixal=j+(y*512)
-                                        lat,lon =  self.converter.PixelXYToLatLongOSM(x_pixal_world,y_pixal_world,15)
-                                        color = list(filled_tiles_matrix[x][y][i][j])
-                                        color = [float(color[0]),float(color[1]),float(color[2]),float(color[3])]
-                                        maerc_lat,maerc_lon = transformer.transform(lat, lon)
-                                        height = float(-10000 + ((color[0] * 256 * 256 + color[1] * 256 + color[2]) * 0.1))
-                                        try:
-                                                modelPoint.objects.create(wsg48Point = geos.Point(lon,lat) ,macPoint = geos.Point(maerc_lon,maerc_lat),color=json.dumps(color),pixal_xy=json.dumps([x_pixal,y_pixal]),world_pixal_xy=json.dumps([x_pixal_world,y_pixal_world]),height=height )
-                                        except:
-                                                pass
-        print('ok')         
-        return self.areaArray
-
+        def decode_tile(self,tile,iStartRange,iEndRange,filledTile):
+                print([iStartRange,iEndRange])
+                transformer = Transformer.from_crs("epsg:4326", "epsg:3857")
+                for i in range(512)[iStartRange:iEndRange]:
+                        for j in range(512):
+                                x_pixal_world = (i+(512*tile[0]))
+                                y_pixal_world = (j+(512*tile[1]))
+                                x_pixal=i
+                                y_pixal=j
+                                lat,lon =  self.converter.PixelXYToLatLongOSM(x_pixal_world,y_pixal_world,15)
+                                color = list(filledTile[i][j])
+                                color = [float(color[0]),float(color[1]),float(color[2]),float(color[3])]
+                                maerc_lat,maerc_lon = transformer.transform(lat, lon)
+                                height = float(-10000 + ((color[0] * 256 * 256 + color[1] * 256 + color[2]) * 0.1))
+                                try:
+                                        modelPoint.objects.create(wsg48Point = geos.Point(lon,lat) ,macPoint = geos.Point(maerc_lon,maerc_lat),color=json.dumps(color),pixal_xy=json.dumps([x_pixal,y_pixal]),world_pixal_xy=json.dumps([x_pixal_world,y_pixal_world]),height=height )
+                                except:
+                                        pass
 
 
 

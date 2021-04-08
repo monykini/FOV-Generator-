@@ -1,6 +1,11 @@
 {% extends 'base/homebase.html' %}
 {% load static %}
 
+{% block files %}
+<script crossorigin src="https://unpkg.com/react@17/umd/react.development.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+{% endblock %}
+
 {% block content %}
 
 <div class="page-hero-section bg-image hero-home-1" style="background: #2f2f2f ;">
@@ -15,8 +20,8 @@
            <a href="{% url 'registartion' %}"><button class="btn btn-dark rounded-pill">Get Account</button></a>
         </div>
         <div class="col-lg-6 d-none d-lg-block wow zoomIn">
-          <div class="img-place mobile-preview shadow floating-animate">
-            <img src="{% static 'img/app_preview_1.png'%}" alt="">
+          <div class="img-place mobile-preview shadow floating-animate" id="model1" style="max-width: 380px;">
+            <!-- <img src="{% static 'img/app_preview_1.png'%}" alt=""> -->
           </div>
         </div>
       </div>
@@ -281,6 +286,57 @@
     </div>
   </div>
 </div>
+ {% endblock %}
+
+ {% block script %}
+ <script type="module">
+
+  // Find the latest version by visiting https://unpkg.com/three.
+  
+import * as THREE from 'https://unpkg.com/three@0.126.1/build/three.module.js';
+import Stats from 'https://unpkg.com/three@0.126.1/examples/jsm/libs/stats.module.js';
+import { GUI } from 'https://unpkg.com/three@0.126.1/examples/jsm/libs/dat.gui.module.js';
+import { OrbitControls } from 'https://unpkg.com/three@0.126.1/examples/jsm/controls/OrbitControls.js';
+// import { Ocean } from 'https://unpkg.com/three@0.126.1/examples/jsm/misc/Ocean.js';
+import { Water } from 'https://unpkg.com/three@0.126.1/examples/jsm/objects/Water2.js';
+import { Sky } from 'https://unpkg.com/three@0.126.1/examples/jsm/objects/Sky.js';
+import { VertexNormalsHelper } from 'https://unpkg.com/three@0.126.1/examples/jsm/helpers/VertexNormalsHelper.js';
+import { RectAreaLightHelper } from 'https://unpkg.com/three@0.126.1/examples/jsm/helpers/RectAreaLightHelper.js';
+
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera( 75, 500 / 500, 0.1, 1000 );
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+scene.background = new THREE.Color( "#2f2f2f");
+renderer.setSize( 500, 500 );
+$('#model1').append( renderer.domElement );
+const geometry = new THREE.SphereGeometry(20,25,25);
+const texture = new THREE.TextureLoader().load("{% static 'img/8081_earthlights10k.jpg' %}" );
+const material = new THREE.MeshBasicMaterial({ map: texture,});
+const cube = new THREE.Mesh( geometry, material );
+cube.geometry.verticesNeedUpdate = true;
+cube.geometry.attributes.position.needsUpdate = true;
+var position = geometry.attributes.position.array;
+var normal = geometry.attributes.normal.array;
+scene.add( cube );      
+camera.position.z = 50;
+camera.rotation.y = 1.5708;
+const controls = new OrbitControls( camera, renderer.domElement );
+controls.maxDistance=45
+controls.minDistance=40
+controls.update();
+const light = new THREE.AmbientLight( 0x404040 );
+scene.add( light );
+const animate = function () {
+  requestAnimationFrame( animate );
+  cube.geometry.attributes.position.needsUpdate = true;
+  cube.rotation.y+=0.003
+  renderer.render( scene, camera );
+
+};
+
+animate();
+</script>
  {% endblock %}
 
 

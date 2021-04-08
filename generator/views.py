@@ -1,9 +1,15 @@
 from django.shortcuts import render
 from django.http import JsonResponse
 from GenClasses.main import FOV_fucade
+from .models import modelPoint
 import jsonpickle
 import json
-
+import jsonpickle
+from numba import jit , njit
+from numba.types import float64,int32,int64,float32,List
+import numpy as np
+from GenClasses.Shapes import userMarker
+from django.contrib.gis import geos
 
 def genrator(request):
     if request.method == 'POST':
@@ -15,6 +21,31 @@ def genrator(request):
     return render(request,'map/map.html')
 
 
-
-
-
+def model(request):
+    Marker = userMarker([-73.96822854362219,40.76470739485811][::-1],100)
+    print(tuple([tuple(i[::-1])  for i in list(Marker.get_square_4326().exterior.coords)]))
+    wsg48polygon = geos.Polygon(tuple([tuple(i[::-1])  for i in list(Marker.get_square_4326().exterior.coords)]))
+    points = modelPoint.objects.filter(wsg48Point__intersects = wsg48polygon)
+    geoJsonPoints={"type": "FeatureCollection","features": []}
+    Xs=[]
+    Ys=[]
+    dic = {}
+    for p in points:
+        pixal_xy = json.loads(p.world_pixal_xy)
+        # geoJsonPoints["features"].append({"type": "Feature","properties":{"pixal":pixal_xy,"height":p.height},"geometry": json.loads(p.wsg48Point.geojson)})
+        dic[str(pixal_xy)] = p.height
+        if pixal_xy[0] not in Xs:
+            Xs.append(pixal_xy[0])
+        if pixal_xy[1] not in Ys:
+            Ys.append(pixal_xy[1])
+    minx = min(Xs)
+    miny = min(Ys)
+    matrix={}
+    for x in Xs:
+        for y in Ys:
+            matrix[f'{x-minx},{y-miny}']= dic[str([x,y])]
+    print(minx)
+    print(miny)
+    print(matrix)
+    return render(request,'3D/earth.html',{'points':jsonpickle.encode(matrix),'minx':minx,'miny':miny})
+    

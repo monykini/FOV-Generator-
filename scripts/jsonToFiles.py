@@ -1,7 +1,7 @@
 import json
 import os, gdal
 import mercantile
-from generator.models import maxElevation
+from generator.models import maxElevation,modelPoint
 from django.contrib.gis.gdal import GDALRaster
 import numpy as np
 from shapely.geometry import Point
@@ -21,110 +21,61 @@ tile_size_y = 512
 
 
 
+def get_tiles(self):
+    tiles = []
+    square_4326 = self.userMarker
+    for p in square_4326:
+            mercent = mercantile.tile(p[1],p[0],15)
+            tiles.append([mercent.x,mercent.y])
+
+    x_matrix =  [ p[1] for p in tiles ]
+    y_matrix = [p[0] for p in tiles]
+    
+    x_matrix_max , x_matrix_min = max(x_matrix) , min(x_matrix)
+    y_matrix_max , y_matrix_min = max(y_matrix) , min(y_matrix) 
+
+    total_x_axis_tiles = x_matrix_max-x_matrix_min+1
+    total_y_axis_tiles = y_matrix_max-y_matrix_min+1
+
+    top_left_tile = tiles[0]
+    total_tiles_matrix=[]
+    for x in range(total_x_axis_tiles):
+            temp=[]
+            for y in range(total_y_axis_tiles):
+                    temp.append([top_left_tile[0]-y,top_left_tile[1]+x])
+            total_tiles_matrix.append(temp)
+
+    total_tiles_matrix = total_tiles_matrix[::-1]
+    return total_tiles_matrix
+
+
+def decode_tile(self,tile,iStartRange,iEndRange,filledTile):
+    print([iStartRange,iEndRange])
+    for i in range(512)[iStartRange:iEndRange]:
+            for j in range(512):
+                    print(i,j)
+                    print([iStartRange,iEndRange])
+                    transformer = Transformer.from_crs("epsg:4326", "epsg:3857")
+                    x_pixal_world = (i+(512*tile[0]))
+                    y_pixal_world = (j+(512*tile[1]))
+                    x_pixal=i
+                    y_pixal=j
+                    lat,lon =  self.converter.PixelXYToLatLongOSM(x_pixal_world,y_pixal_world,15)
+                    color = list(filledTile[i][j])
+                    color = [float(color[0]),float(color[1]),float(color[2]),float(color[3])]
+                    maerc_lat,maerc_lon = transformer.transform(lat, lon)
+                    height = float(-10000 + ((color[0] * 256 * 256 + color[1] * 256 + color[2]) * 0.1))
+                    try:
+                            modelPoint.objects.create(wsg48Point = geos.Point(lon,lat) ,macPoint = geos.Point(maerc_lon,maerc_lat),color=json.dumps(color),pixal_xy=json.dumps([x_pixal,y_pixal]),world_pixal_xy=json.dumps([x_pixal_world,y_pixal_world]),height=height )
+                    except:
+                            pass
 
 
 def run(verbose=True):
-    ds = gdal.Open(world_shp + input_name)
-    band = ds.GetRasterBand(1)
-    xsize = band.XSize
-    ysize = band.YSize
-    for i in range(0, xsize, tile_size_x):
-        for j in range(0, ysize, tile_size_y):
-            com_string = "gdal_translate -of GTIFF -srcwin " + str(i)+ ", " + str(j) + ", " + str(tile_size_x) + ", " + str(tile_size_y) + " " + str(world_shp) + str(input_name) + " " + str(rasterout) + str(output_filename) + str(i) + "_" + str(j) + ".tif"
-            os.system(com_string)
-            rst = GDALRaster(world_shp + str(output_filename) + str(i) + "_" + str(j) + ".tif" , write=True)
-            ele = maxElevation(tile = rst)
-            ele.save()
-
-latlon_to_pixal_Converter_specs=[
-        ('pixelX', int64), 
-        ('pixelY', int64), 
-        ('latitude', float64), 
-        ('longitude', float64), 
-]
 
 
 
 
 
-@jitclass(latlon_to_pixal_Converter_specs)
-class jit_latlon_to_pixal_Converter():
 
-    def __init__(self):
-        pass
 
-    def ClipByRange(self,n, range):
-        return n % range
-
-    def Clip(self,n, minValue, maxValue):
-        return min(max(n, minValue), maxValue)
-
-    def PixelXYToLatLongOSM(self,pixelX,pixelY,zoomLevel):
-        mapSize = math.pow(2, zoomLevel) * 512
-        n = math.pi - ((2.0 * math.pi * (self.ClipByRange(pixelY, mapSize - 1) / 512)) / math.pow(2.0, zoomLevel))
-
-        longitude = ((self.ClipByRange(pixelX, mapSize - 1) / 512) / math.pow(2.0, zoomLevel) * 360.0) - 180.0
-        latitude = (180.0 / math.pi * math.atan(math.sinh(n)))
-        return latitude,longitude
-            
-    def LatLongToPixelXYOSM(self,latitude ,longitude, zoomLevel):
-        
-        MinLatitude = -85.05112878
-        MaxLatitude = 85.05112878
-        MinLongitude = -180
-        MaxLongitude = 180
-        mapSize = math.pow(2, zoomLevel) * 512
-
-        latitude = self.Clip(latitude, MinLatitude, MaxLatitude)
-        longitude = self.Clip(longitude, MinLongitude, MaxLongitude)
-
-        X = (longitude + 180.0) / 360.0 * (1 << zoomLevel)
-        Y = (1.0 - math.log(math.tan(latitude * math.pi / 180.0) + 1.0 / math.cos(math.radians(latitude))) / math.pi) / 2.0 * (1 << zoomLevel)
-
-        tilex = int(math.trunc(X))
-        tiley = int(math.trunc(Y))
-
-        pixelX = self.ClipByRange((tilex * 512) + ((X - tilex) * 512), mapSize - 1)
-        pixelY = self.ClipByRange((tiley * 512) + ((Y - tiley) * 512), mapSize - 1)
-
-        return int(pixelX) , int(pixelY)
-
-    
-class latlon_to_pixal_Converter():
-
-    def __init__(self):
-        pass
-
-    def ClipByRange(self,n, range):
-        return n % range
-
-    def Clip(self,n, minValue, maxValue):
-        return min(max(n, minValue), maxValue)
-
-    def PixelXYToLatLongOSM(self,pixelX,pixelY,zoomLevel):
-        mapSize = math.pow(2, zoomLevel) * 512
-        n = math.pi - ((2.0 * math.pi * (self.ClipByRange(pixelY, mapSize - 1) / 512)) / math.pow(2.0, zoomLevel))
-
-        longitude = ((self.ClipByRange(pixelX, mapSize - 1) / 512) / math.pow(2.0, zoomLevel) * 360.0) - 180.0
-        latitude = (180.0 / math.pi * math.atan(math.sinh(n)))
-        return latitude,longitude
-            
-    def LatLongToPixelXYOSM(self,latitude ,longitude, zoomLevel):
-        MinLatitude = -85.05112878
-        MaxLatitude = 85.05112878
-        MinLongitude = -180
-        MaxLongitude = 180
-        mapSize = math.pow(2, zoomLevel) * 512
-
-        latitude = self.Clip(latitude, MinLatitude, MaxLatitude)
-        longitude = self.Clip(longitude, MinLongitude, MaxLongitude)
-
-        X = (longitude + 180.0) / 360.0 * (1 << zoomLevel)
-        Y = (1.0 - math.log(math.tan(latitude * math.pi / 180.0) + 1.0 / math.cos(math.radians(latitude))) / math.pi) / 2.0 * (1 << zoomLevel)
-
-        tilex = int(math.trunc(X))
-        tiley = int(math.trunc(Y))
-
-        pixelX = self.ClipByRange((tilex * 512) + ((X - tilex) * 512), mapSize - 1)
-        pixelY = self.ClipByRange((tiley * 512) + ((Y - tiley) * 512), mapSize - 1)
-        return int(pixelX) , int(pixelY)

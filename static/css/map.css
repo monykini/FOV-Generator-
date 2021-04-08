@@ -28,34 +28,40 @@ z-index: 9999;
     top: 15vh;
     min-height: 50vh;
     right: 1vw;
-    width: 15vw;
+    width: 250px;
 }
 
 .mapboxgl-ctrl-top-right .mapboxgl-ctrl {
-    background-color: #282828de;
-    color: aqua;
+    background-color: #2f2f2f;
+    color: #bbadd2;
     box-shadow: 5px 5px 20px;
 
 }
 
 .neonButton , .neonButton:focus{
-    background: #2a2d31;
-    color: #02f3f3;
-    border-color: #02f3f3;
+    background: #2f2f2f;
+    color: #bbadd2;
+    border-color: #bbadd2;
     box-shadow: 0 0 0 0 rgb(38 143 255 / 50%);
 }
 
 .neonButton:hover{
-    background: #02f3f357;
-    color: #000000;
-    border-color: #2a2d31;
+    background: #bbadd2;
+    color: #2f2f2f;
+    border-color: #2f2f2f;
+}
+.neonButton:not(:disabled):not(.disabled):active{
+    background: #bbadd2;
+    color: #2f2f2f;
+    border-color: #2f2f2f;
+    box-shadow:None;
 }
 .wrapper{
-    background-color: #282828de;
+    background-color: #2f2f2f;
     padding: 10px ;
     box-shadow: 5px 5px 20px;
     border-radius: 5px;
-    color: aqua;
+    color: #bbadd2;
 }
 
 .areaForm{
@@ -65,7 +71,7 @@ z-index: 9999;
 
 }
 #flatSurfaceSumary td{
- width: 6vw;
+ width: 200px;
  margin-bottom: 2px;
 }
 #flatSurfaceSumary tr{
