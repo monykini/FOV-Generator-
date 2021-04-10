@@ -9,7 +9,7 @@
 }
 .calculate{
 position: fixed;
-top: 0;
+top: 6rem;
 left: 0;
 z-index: 9999;
 }
@@ -25,7 +25,7 @@ z-index: 9999;
 }
 .overlay-summary{
     position: fixed;
-    top: 15vh;
+    top: 15rem;
     min-height: 50vh;
     right: 1vw;
     width: 250px;
@@ -48,7 +48,7 @@ z-index: 9999;
 .neonButton:hover{
     background: #bbadd2;
     color: #2f2f2f;
-    border-color: #2f2f2f;
+    border-color: #bbadd2;
 }
 .neonButton:not(:disabled):not(.disabled):active{
     background: #bbadd2;
@@ -76,4 +76,12 @@ z-index: 9999;
 }
 #flatSurfaceSumary tr{
     height: 4vh;
+}
+#map { position: absolute; top: 5rem; bottom: 0; width: 100%; }
+
+
+@media(min-width: 992px){
+.navbar-expand-lg.navbar-floating {
+    top: 0px;
+}
 }

@@ -1,14 +1,19 @@
-from statistics import stdev , mean
-from pyproj import Transformer
-from shapely.geometry import Point, Polygon, LineString
-import shapely
-import math
-from scipy import stats
-from sklearn import decomposition
-import numpy as np
 from django.contrib.gis import geos
+
+
 from generator.models import modelPoint,buildingData
+from .Exceptions import NotEnoughPoints
+
+import shapely
 import json
+from statistics import stdev , mean
+from shapely.geometry import Point, Polygon, LineString
+import numpy as np
+from pyproj import Transformer
+from sklearn import decomposition
+from scipy import stats
+from scipy.spatial import ConvexHull as sciConvexHull
+import math
 from numba import jit , njit
 
 class Points():
@@ -34,7 +39,6 @@ class flatSurface():
         self.hexa=hexa
         self.fov = None
     
-    @jit()
     def get_area_flat_surface(self):
             self.sides = [ i.mac_latlon for i in self.points ]
             polygon = shapely.geometry.Polygon(self.sides)
@@ -91,45 +95,52 @@ class Hexa():
                 self.x = value
             elif key == 'y':
                 self.y = value
+        
         self.create_hexagon()
         
 
-    @jit
-    def create_cube(self,points , checkNmber = None):
+    def create_cube(self,points):
+        """
+        this function create a matrix repesentation of the points to
+        understand the relative heights of the points
+
+        create_cube(points)
+
+        returns matrix , min_total_x(minmum x value) , min_total_y(minmum y value) , min_total_z(minmum z value) ,max_x,max_y,max_z
+
+        """
         x,y,z=[],[],[]
-        if len(points) < 10 and checkNmber != None:
-            #-----not enough points to calaculate
-            return
+        
         for data in points:
             x.append(data.world_pixal_xy[0])
             y.append(data.world_pixal_xy[1])
             z.append(data.height)
-        # if int(max(z)-min(z)) <= 0 and checkNmber!= None:
-        #     return 0,0,0,0,0,0,0
+
         min_total_x , min_total_y , min_total_z = min(x),min(y),int(max(z))
+        
         min_x,min_y,min_z,max_x,max_y,max_z=int(min(x)-min(x)),int(min(y)-min(y)),int(min(z)-min(z)),int(max(x)-min(x)),int(max(y)-min(y)),int(max(z)-min(z))
-        # print(max_z , min(z),'z-values')
+        
         cube = np.full((max_z+1, max_x+1,max_y+1 ),-1)
         cube[...] = -1
+
         for data in points:
             cube[int((data.height)-min(z))][int(data.world_pixal_xy[0]-min(x))][int(data.world_pixal_xy[1]-min(y))]=1
-        # print(cube)
-        return cube , min_total_x , min_total_y , min_total_z ,max_x,max_y,max_z
+        
+        return cube , min_total_x , min_total_y , min_total_z ,max_x ,max_y ,max_z
 
         
     def beta_flatness(self):
+
         if len(self.points) < 10:
-            #-----not enough points to calaculate
+            raise NotEnoughPoints
+
+        cube , min_total_x , min_total_y , min_total_z ,max_x,max_y,max_z = self.create_cube(self.points)
+
+        if type(cube)== type(0):
             return
 
-        cube , min_total_x , min_total_y , min_total_z ,max_x,max_y,max_z = self.create_cube(self.points,1)
-
-        if type(cube)== type(0) :
-            return
-        # print(len(cube[0]))
-        # print(len(cube[0][0]))
-        scanner =np.full((max_x+1,max_y+1), 9)
-        scanner[...]=-1
+        scanner =np.full((max_x+1,max_y+1), -1)
+        
         for i in range(max_x+1):
             for j in range(max_y+1):
                 for z in range(max_z, -1, -1):
@@ -137,20 +148,20 @@ class Hexa():
                         scanner[i][j] = z
                         break
 
-        # print(scanner)
-        # print(scanner)
         points_accessed = []
+        
         falt_areas = []
+        
         for x in range(len(scanner)):
             for y in range(len(scanner[x])):
                 if [x,y] not in points_accessed:
                     flat=[]
-                    self.dertmine_surfaces(scanner,points_accessed,flat,x,y,flat)
+                    self.dertmine_surfaces(scanner,points_accessed,x,y,flat)
                     if len(flat) > 1:
                         falt_areas.append(flat)
-                        # print(flat)
+        
         flat_surface_points=[]
-        # print(falt_areas,"flat")
+        
         for flat in falt_areas:
             flat_points=[]
             for p in flat:
@@ -158,49 +169,39 @@ class Hexa():
                     if poi.world_pixal_xy == [p[0]+min_total_x,p[1]+min_total_y]:
                         flat_points.append(poi)
             flat_surface_points.append(flat_points)
+        
         self.cube = cube
         self.falt_sufrace = falt_areas
         self.falt_sufrace_points = flat_surface_points
-        flat_surface_polygons=[]
-        #-----------boundries of flat surfaces------------------------------------
-        for p in flat_surface_points:
-            all_points=p
-            polygon = []
-            polygon2=[]
-            cube , min_total_x , min_total_y , min_total_z ,max_x,max_y,max_z = self.create_cube(p)
-            scanner = np.full((max_x+1,max_y+1), 9)
-            scanner[...]=-1
-            for i in range(max_x+1):
-                for j in range(max_y+1):
-                    for z in range(max_z, -1, -1):
-                        if cube[z][i][j] >= 1:
-                            scanner[i][j] = z
-            # print(scanner)
-            for x in range(len(scanner)):
-                array = []
-                for y in range(len(scanner[x])):
-                    if scanner[x][y] != -1:
-                        array.append([x,y])
-                if len(array) >= 2:
-                    for poi in p:
-                        if poi.world_pixal_xy == [array[0][0]+min_total_x,array[0][1]+min_total_y]:
-                            polygon.append(poi)
-                        if poi.world_pixal_xy == [array[-1][0]+min_total_x,array[-1][1]+min_total_y]:
-                            polygon2.append(poi)
-                elif len(array) == 1:
-                    for poi in p:
-                        if poi.world_pixal_xy == [array[0][0]+min_total_x,array[0][1]+min_total_y]:
-                            polygon.append(poi)
-            if len(polygon) > 2 and len(polygon2) > 0:
-                flat_surface_polygons.append(polygon+polygon2[::-1])
-                self.falt_sufrace_allPoints.append(all_points)
-        self.falt_sufrace_points = flat_surface_polygons
+        
+
+        self.falt_sufrace_points,self.falt_sufrace_allPoints = self.create_borders(flat_surface_points)
 
     
+    def create_borders(self,points):
+        flat_surface_polygons=[]
+        falt_sufrace_allPoints=[]
+
+        for ch in points:
+            cHull = []
+            for data in ch:
+                cHull.append([data.world_pixal_xy[0],data.world_pixal_xy[1]])
+
+            if (len(cHull) > 2):
+                try:
+                    hull = sciConvexHull(cHull)
+                    polygon = []
+                    for p in hull.vertices:
+                            polygon.append(ch[p])
+                    flat_surface_polygons.append(polygon)
+                    falt_sufrace_allPoints.append(ch)
+                except:
+                    pass
+        
+        return  flat_surface_polygons , falt_sufrace_allPoints
 
 
-    @jit
-    def dertmine_surfaces(self,scanner,points_accessed,falt,x,y,flat):
+    def dertmine_surfaces(self,scanner,points_accessed,x,y,flat):
         checks = 0
         #check left point
         if([x,y] not in points_accessed and scanner[x][y] != -1):
@@ -208,21 +209,21 @@ class Hexa():
             if(x-1 >= 0):
                 if  abs(scanner[x][y] - scanner[x-1][y]) <= 1:
                     checks+=1
-                    self.dertmine_surfaces(scanner,points_accessed,flat,x-1,y,flat)
+                    self.dertmine_surfaces(scanner,points_accessed,x-1,y,flat)
             else:
                 checks+=1
             #check right point
             if(x+1 < len(scanner)):
                 if  abs(scanner[x][y] - scanner[x+1][y]) <= 1:
                     checks+=1
-                    self.dertmine_surfaces(scanner,points_accessed,flat,x+1,y,flat)
+                    self.dertmine_surfaces(scanner,points_accessed,x+1,y,flat)
             else:
                 checks+=1 
             #check bottom point
             if( y+1 < len(scanner[x])):
                 if  abs(scanner[x][y] - scanner[x][y+1]) <= 1:
                     checks+=1
-                    self.dertmine_surfaces(scanner,points_accessed,flat,x,y+1,flat)
+                    self.dertmine_surfaces(scanner,points_accessed,x,y+1,flat)
             else:
                 checks+=1 
 
@@ -231,7 +232,7 @@ class Hexa():
             if( y-1 >= 0):
                 if  abs(scanner[x][y] - scanner[x][y-1]) <= 1:
                     checks+=1
-                    self.dertmine_surfaces(scanner,points_accessed,flat,x,y-1,flat)
+                    self.dertmine_surfaces(scanner,points_accessed,x,y-1,flat)
             else:
                 checks+=1 
 

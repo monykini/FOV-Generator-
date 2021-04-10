@@ -2123,10 +2123,13 @@ hr {
   .navbar-expand-lg.navbar-floating.navbar-light {
     background-color: transparent;
     box-shadow: none;
+    box-shadow: 0 6px 18px 2px rgb(56 51 64);
   }
   .navbar-expand-lg.navbar-floating.navbar-dark {
     background-color: transparent;
     box-shadow: none;
+    box-shadow: 0 1px 6px rgba(56, 51, 64, 0.1);
+
   }
 }
 

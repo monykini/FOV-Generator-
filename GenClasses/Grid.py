@@ -5,6 +5,8 @@ from pyproj import Transformer
 from .Shapes import Hexa , Points , userMarker , flatSurface , FOV
 from generator.models import modelHexas,modelUserMarker,modelPoint,modelFOV,modelFlatSurface,buildingData
 from django.contrib.gis import geos
+from django.core.exceptions import ObjectDoesNotExist
+from .Exceptions import WaterTile ,NoDataAvailable
 from .Tiles import latlon_to_pixal_Converter
 
 class hexaGrid():
@@ -20,6 +22,8 @@ class hexaGrid():
                 self.userMarker = userMarker
                 self.sideLength = 28.868
                 self.flat_surfaces = []
+                self.CoverageArea = 405.95
+                self.converter = latlon_to_pixal_Converter()
                 self.calculate_grid()
 
         def calculate_grid(self):
@@ -88,7 +92,6 @@ class hexaGrid():
 
         def Mapper(self):
                 temp=[]
-                marker = modelUserMarker.objects.get(id=self.userMarker.id)
                 for hexa in self.hexas:
                         hexi = modelHexas.objects.get(id = hexa.id)
                         buildings = buildingData.objects.filter(geom__intersects = hexi.wsg48polygon)
@@ -101,29 +104,34 @@ class hexaGrid():
                         for point in points:
                                 data = Points(list(point.wsg48Point.coords)[::-1], list(point.macPoint.coords)[::-1] , json.loads(point.pixal_xy) , json.loads(point.world_pixal_xy) , point.height+lytes.get(point.id,0) , json.loads(point.color))
                                 hexa.points.append(data)
-                self.assign_falt_surfaces()        
+
+                        hexa.beta_flatness()
+
+                self.assign_falt_surfaces()    
                 return temp
 
         def assign_falt_surfaces(self):
                 marker = modelUserMarker.objects.get(id=self.userMarker.id)
-                converter = latlon_to_pixal_Converter()
-                markerx,markery = converter.LatLongToPixelXYOSM(self.userMarker.latlon[0],self.userMarker.latlon[1],15)
-                print(markerx,markery)
+                markerx,markery = self.converter.LatLongToPixelXYOSM(self.userMarker.latlon[0],self.userMarker.latlon[1],15)
                 markerBuilding = 0
-                markerPoint = modelPoint.objects.get(world_pixal_xy = json.dumps([markerx,markery]))
+                try:
+                        markerPoint = modelPoint.objects.get(world_pixal_xy = json.dumps([markerx,markery]))
+                except ObjectDoesNotExist:
+                        raise NoDataAvailable
                 if buildingData.objects.filter(geom__intersects = markerPoint.wsg48Point).exists():
                         markerBuilding =  buildingData.objects.filter(geom__intersects = markerPoint.wsg48Point)[0].height
+
                 self.userMarker.Height = markerPoint.height + markerBuilding
+
                 for hexa in self.hexas:
-                        hexa.beta_flatness()
                         i=0
                         for flatpoints in hexa.falt_sufrace_points:
                                 flat_Surface = flatSurface(flatpoints,hexa)
                                 flat_Surface.insidePoints = hexa.falt_sufrace_allPoints[i]
                                 flat_Surface.get_area_flat_surface()
-                                if flat_Surface.area >= 405.95:
+                                if flat_Surface.area >= self.CoverageArea:
                                         fov  = FOV()
-                                        fov.create_fov(flat_Surface.center  , self.userMarker.get_latlonMac()) #612022
+                                        fov.create_fov(flat_Surface.center  , self.userMarker.get_latlonMac())
                                         if (fov.height >= 100 and fov.height <=4000) and (flat_Surface.modeHeight >= self.userMarker.Height) :
                                                 # fov.get_obstruction(flat_Surface.insidePoints,flat_Surface.modeHeight,self.userMarker)
                                                 flat_Surface.fov = fov

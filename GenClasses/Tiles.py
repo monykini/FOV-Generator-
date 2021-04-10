@@ -66,14 +66,20 @@ class tileGatherer():
                 for x in range(len(total_tiles_matrix)):
                         for y in range(len(total_tiles_matrix[x])):
                                 check = 0
-                                for i in range(0,512,256):
-                                        for j in range(0,512,256):
+                                for i in range(0,512,32):
+                                        for j in range(0,512,511):
                                                 x_pixal_world = (i+(512*total_tiles_matrix[x][y][0]))
                                                 y_pixal_world = (j+(512*total_tiles_matrix[x][y][1]))
                                                 lat,lon =  self.converter.PixelXYToLatLongOSM(x_pixal_world,y_pixal_world,15)
                                                 if modelPoint.objects.filter(wsg48Point = geos.Point(lon,lat) ).exists():
                                                         check += 1
-                                if check >= 3:
+                                for j in range(0,512,511):
+                                        x_pixal_world = (511+(512*total_tiles_matrix[x][y][0]))
+                                        y_pixal_world = (j+(512*total_tiles_matrix[x][y][1]))
+                                        lat,lon =  self.converter.PixelXYToLatLongOSM(x_pixal_world,y_pixal_world,15)
+                                        if modelPoint.objects.filter(wsg48Point = geos.Point(lon,lat) ).exists():
+                                                check += 1
+                                if check >= 34:
                                         remove.append([x,y])
                 print(remove)
                 for r in remove[::-1]:
@@ -104,41 +110,47 @@ class tileGatherer():
 
 
 
-        def conver_raster_tiles(self):
-                # total_tiles_matrix = self.check_files(self.get_tiles())
+        def convert_raster_tiles(self):
                 t1 = time.perf_counter()
-                total_tiles_matrix = self.get_tiles()
+
+                total_tiles_matrix = self.check_files(self.get_tiles())
                 total_tiles_matrix , filled_tiles_matrix  = self.get_raster_tiles(total_tiles_matrix)
-                pool = Pool(processes=10)
+
+                pool = Pool(processes=16)
+
                 for x in range(len(total_tiles_matrix)):
                         for y in range(len(total_tiles_matrix[x])):
                                 pools=[]
                                 for k in range(16):
-                                        print(32*k,(32*(k+1)))
                                         pools.append(pool.apply_async(self.decode_tile, args=(total_tiles_matrix[x][y],32*k,(32*(k+1)),filled_tiles_matrix[x][y])))
                                 for k in range(16):
                                         pools[k].wait()
+                                        
                 t2 = time.perf_counter()
                 print(f"{t2-t1} Seconds")
 
         def decode_tile(self,tile,iStartRange,iEndRange,filledTile):
-                print([iStartRange,iEndRange])
                 transformer = Transformer.from_crs("epsg:4326", "epsg:3857")
                 for i in range(512)[iStartRange:iEndRange]:
                         for j in range(512):
                                 x_pixal_world = (i+(512*tile[0]))
                                 y_pixal_world = (j+(512*tile[1]))
-                                x_pixal=i
-                                y_pixal=j
+
+                                x_pixal,y_pixal=i,j
+
                                 lat,lon =  self.converter.PixelXYToLatLongOSM(x_pixal_world,y_pixal_world,15)
+
                                 color = list(filledTile[i][j])
                                 color = [float(color[0]),float(color[1]),float(color[2]),float(color[3])]
+
                                 maerc_lat,maerc_lon = transformer.transform(lat, lon)
+
                                 height = float(-10000 + ((color[0] * 256 * 256 + color[1] * 256 + color[2]) * 0.1))
-                                try:
-                                        modelPoint.objects.create(wsg48Point = geos.Point(lon,lat) ,macPoint = geos.Point(maerc_lon,maerc_lat),color=json.dumps(color),pixal_xy=json.dumps([x_pixal,y_pixal]),world_pixal_xy=json.dumps([x_pixal_world,y_pixal_world]),height=height )
-                                except:
-                                        pass
+                                if height != 0 :
+                                        try:
+                                                modelPoint.objects.create(wsg48Point = geos.Point(lon,lat) ,macPoint = geos.Point(maerc_lon,maerc_lat),color=json.dumps(color),pixal_xy=json.dumps([x_pixal,y_pixal]),world_pixal_xy=json.dumps([x_pixal_world,y_pixal_world]),height=height )
+                                        except:
+                                                pass
 
 
 

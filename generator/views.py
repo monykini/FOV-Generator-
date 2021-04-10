@@ -10,13 +10,17 @@ from numba.types import float64,int32,int64,float32,List
 import numpy as np
 from GenClasses.Shapes import userMarker
 from django.contrib.gis import geos
+import time
 
 def genrator(request):
     if request.method == 'POST':
+        t1 = time.perf_counter()
         latlon = json.loads(request.POST.get('lonlat',[0,0]))
         area = request.POST.get('area',None)
         fucade = FOV_fucade() 
         data2 , hexas = fucade.create_FOV(request,latlon,float(area))
+        t2 = time.perf_counter()
+        print(f"{t2-t1} , seconds end")
         return JsonResponse({'flatSurfaces':data2 , 'Hexas':hexas })
     return render(request,'map/map.html')
 
@@ -47,5 +51,6 @@ def model(request):
     print(minx)
     print(miny)
     print(matrix)
+    
     return render(request,'3D/earth.html',{'points':jsonpickle.encode(matrix),'minx':minx,'miny':miny})
     
