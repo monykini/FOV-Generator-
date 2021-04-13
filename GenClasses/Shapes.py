@@ -259,7 +259,7 @@ class Hexa():
 
     def create_hexagon(self):
                 """
-                Create a hexagon centered on (x, y)
+                Creates a hexagon centered on (x, y)
                 :param l: length of the hexagon's edge
                 :param x: x-coordinate of the hexagon's center
                 :param y: y-coordinate of the hexagon's center
@@ -359,26 +359,23 @@ class FOV():
     
 
     def create_fov(self , hexa_center , userPoint):
+        raw_hight_vector = [hexa_center[0]-userPoint[0] ,hexa_center[1]-userPoint[1]]
         height_vector = [abs(hexa_center[0]-userPoint[0]) ,abs(hexa_center[1]-userPoint[1])]
         height_value = math.sqrt(math.pow(hexa_center[0]-userPoint[0],2)+math.pow(hexa_center[1]-userPoint[1],2))
         self.height = height_value 
         hypo = height_value / math.cos((self.angle/2)*(math.pi/180))
         length_new_vector =abs( hypo * math.sin((self.angle/2)*(math.pi/180)))
         height_normal = [height_vector[0]/height_value , height_vector[1]/height_value]
-        # diff_x =userPoint[0]-((length_new_vector * hexa_center[1]-userPoint[1]) / height_value)
-        # diff_y =userPoint[1]-((length_new_vector * userPoint[0]-hexa_center[0] )/height_value)
-        # print(diff_x , diff_y , 'shiiit')
-        # diff_x =userPoint[0]+((length_new_vector * hexa_center[1]-userPoint[1]) / height_value)
-        # diff_y =userPoint[1]+((length_new_vector * userPoint[0]-hexa_center[0] )/height_value)
-        # print(diff_x , diff_y , 'shiiit2')
-        cos_90 = 0
-        sin_90 = 1
         matrix_height_normal = [[height_normal[0]],[height_normal[1]]]
         matix_clock_wise = [[0 , -1],[1 , 0]]
         matix_anticlock_wise = [[0 , 1],[-1 , 0]]
         vector1 = ((np.matmul(matix_clock_wise,matrix_height_normal)*length_new_vector).ravel()).tolist()
         vector2 = ((np.matmul(matix_anticlock_wise,matrix_height_normal)*length_new_vector).ravel()).tolist()
-        vertices = [hexa_center , [userPoint[0]+vector1[0] , userPoint[1]+vector2[1]],[userPoint[0]+vector2[0] , userPoint[1]+vector1[1]]]
+        if (raw_hight_vector[0] * raw_hight_vector[1]) > 0 :
+            vertices = [hexa_center , [userPoint[0]+vector1[0] , userPoint[1]+vector1[1]],[userPoint[0]+vector2[0] , userPoint[1]+vector2[1]]]
+        else:
+            vertices = [hexa_center , [userPoint[0]+vector1[0] , userPoint[1]+vector2[1]],[userPoint[0]+vector2[0] , userPoint[1]+vector1[1]]]
+        
         self.view_area = vertices
         polygon = shapely.geometry.Polygon(self.view_area)
         self.area = polygon.area
@@ -459,10 +456,6 @@ class FOV():
         return cube , min_total_x , min_total_y , min_total_z ,max_x,max_y,max_z
 
 
-    
-
-
-
     def get_fov_4326(self):
         if self.view_area == None :
             return None
@@ -475,73 +468,5 @@ class FOV():
         return square_4326
 
 
-
-
-
-class ConvexHull():
-
-    class POINT():
-        def __init__(self,x,y):
-            self.x = x
-            self.y = y
-  
-    def Left_index(self,points): 
-        minn = 0
-        for i in range(1,len(points)): 
-            if points[i].x < points[minn].x: 
-                minn = i 
-            elif points[i].x == points[minn].x: 
-                if points[i].y > points[minn].y: 
-                    minn = i 
-        return minn 
-    
-    def orientation(self,p, q, r): 
-        ''' 
-        To find orientation of ordered triplet (p, q, r).  
-        The function returns following values  
-        0 --> p, q and r are colinear  
-        1 --> Clockwise  
-        2 --> Counterclockwise  
-        '''
-        val = (q.y - p.y) * (r.x - q.x) - (q.x - p.x) * (r.y - q.y) 
-    
-        if val == 0: 
-            return 0
-        elif val > 0: 
-            return 1
-        else: 
-            return 2
-    
-    def convexHull(self,points, n): 
-        if n < 3: 
-            return
-        l = self.Left_index(points) 
-    
-        hull = [] 
-        p = l 
-        q = 0
-        while(True): 
-            hull.append(p) 
-            q = (p + 1) % n 
-    
-            for i in range(n): 
-                if(self.orientation(points[p],  
-                            points[i], points[q]) == 2): 
-                    q = i 
-            p = q 
-            if(p == l): 
-                break
-        output = []
-        for each in hull:
-            output.append([points[each].x, points[each].y]) 
-            print(points[each].x, points[each].y)
-        return output 
-
-
-    def main(self,inputpoints):
-        points = []
-        for p in inputpoints: 
-            points.append(self.POINT(p[0], p[1])) 
-        return self.convexHull(points, len(points)) 
   
 
