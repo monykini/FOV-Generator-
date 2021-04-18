@@ -7,8 +7,8 @@ buildingdata_mapping = {
     'geom': 'MULTIPOLYGON',
 }
 
-class maxElevation(models.Model):
-    tile = models.RasterField()
+# class maxElevation(models.Model):
+#     tile = models.RasterField()
 
 
 class cities(models.Model):
@@ -21,10 +21,10 @@ class modelHexaGrid(models.Model):
     macpolygon = models.PolygonField(null=False)
     mac48center = models.PointField(unique=True)
 
-class modelTiles(models.Model):
-    name = models.CharField(max_length=100,unique=True,null=False)
-    zoomLevel = models.PositiveIntegerField(null=False,default=15)
-    rast = models.RasterField()
+# class modelTiles(models.Model):
+#     name = models.CharField(max_length=100,unique=True,null=False)
+#     zoomLevel = models.PositiveIntegerField(null=False,default=15)
+#     rast = models.RasterField()
 
 class modelPoint(models.Model):
     wsg48Point = models.PointField(unique=True)

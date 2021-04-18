@@ -61,6 +61,18 @@
             </div>
         </div>
     </div>
+    <div class="container overlay-layers ">
+        <div class="row wrapper d-flex ">
+        <div class="col-auto d-flex align-items-center">
+            <p class="mb-0 mx-1">hexagons</p>
+            <input type="checkbox" class="mx-1" name="hexagonsLayer" id="hexagonsLayer" onclick="showlayer('HexaLayer')">
+        </div>
+        <div class="col-auto d-flex align-items-center">
+            <p class="mb-0 mx-1">Flat Surfaces</p>
+            <input type="checkbox" class="mx-1" name="flatSurfacesLayer" id="flatSurfacesLayer" onclick="showlayer('flatSurfaceLayer')">
+        </div>
+        </div>
+    </div>
 </section>
 {% endblock %}
 
@@ -70,6 +82,7 @@
 alertify.set('notifier','position', 'top-center');
 var markers01=[];
 var lnglat=[];
+var caluclateMarker;
 
 function show(data){
     if(data === "areaForm"){
@@ -138,9 +151,13 @@ function tile_request(){
         success: function(result){
             create_square(JSON.stringify(result.flatSurfaces).replace('\'','"'))
             create_hexas(JSON.stringify(result.Hexas).replace('\'','"'))
-            console.log(JSON.stringify(result.flatSurfaces))
             hide('areaForm')
             alertify.success('Area calculated')
+            if (caluclateMarker){
+                caluclateMarker.remove();
+            }
+            caluclateMarker = new mapboxgl.Marker({ "color": "#63b47c" }).setLngLat([lnglat['lng'],lnglat['lat']]).addTo(map);
+            $('.overlay-layers').show()
         },
         error:function(data){
             alertify.error('We failed to get data please try again')
@@ -209,15 +226,15 @@ map.on('load', function () {
 
 function create_hexas(data){
 
-    console.log(JSON.parse(data))
-
-    try{
-        map.removeLayer('HexaLayer');
-        map.removeSource('HexaSource')
-    }
-    catch{
+    if (map.getLayer("HexaLayer")) {
         
+        map.removeLayer("HexaLayer");
     }
+    if (map.getSource("HexaSource")) {
+
+        map.removeSource("HexaSource");
+    }
+
     map.addSource('HexaSource', {
     'type': 'geojson',
     'data':JSON.parse(data)
@@ -237,13 +254,13 @@ function create_hexas(data){
 
 
 function create_square(data){
+    if (map.getLayer("flatSurfaceLayer")) {
 
-    try{
-        map.removeLayer('flatSurfaceLayer');
-        map.removeSource('flatSurfaceSource')
+        map.removeLayer("flatSurfaceLayer");
     }
-    catch{
-        
+    if (map.getSource("flatSurfaceSource")) {
+
+        map.removeSource("flatSurfaceSource");
     }
     map.addSource('flatSurfaceSource', {
     'type': 'geojson',
@@ -265,16 +282,17 @@ function create_square(data){
     // .setLngLat(e.lngLat)
     // .setHTML("<p>average height: "+e.features[0].properties.fov+"</p>")
     // .addTo(map);
-
-    try{
-        map.removeLayer('povLayer');
-        map.removeSource('povSorce')
+    if (map.getLayer("povLayer")) {
+        
+        map.removeLayer("povLayer");
     }
-    catch{
+    if (map.getSource("povSorce")) {
 
-    }
+        map.removeSource("povSorce");
+    }    
 
-
+    fovData = JSON.parse(e.features[0].properties.fov)
+    console.log(fovData)
     map.addSource('povSorce', {
     'type': 'geojson',
     'data':JSON.parse(e.features[0].properties.fov)
@@ -290,9 +308,9 @@ function create_square(data){
     'filter': ['==', '$type', 'Polygon']
     });
 
-    $('#fovAreaSummary').text((e.features[0].properties.fovArea).toFixed(2));
-    $('#pointsSummary').text(e.features[0].properties.points);
-    $('#flatSurfaceSummary').text((e.features[0].properties.area).toFixed(2));
+    $('#fovAreaSummary').text((fovData.properties.fovArea).toFixed(2)+ 'm2');
+    $('#pointsSummary').text(fovData.properties.numberOfPoints );
+    $('#flatSurfaceSummary').text((fovData.properties.flatSurfaceArea).toFixed(2)+ 'm2');
 
     });
 
@@ -306,6 +324,31 @@ function create_square(data){
     map.getCanvas().style.cursor = '';
     });
 
+}
+
+
+// layer checkbox ----------------------------------------------------------------
+
+hexalayercheckbox = document.getElementById("hexagonsLayer")
+flatsurfacecheckbox = document.getElementById("flatSurfacesLayer")
+flatsurfacecheckbox.checked = true;
+hexalayercheckbox.checked = true;
+
+
+function showlayer(clickedLayer){
+    if (event.srcElement.checked == false) {
+        map.setLayoutProperty(
+        clickedLayer,
+        'visibility',
+        'none'
+        );
+    } else {
+        map.setLayoutProperty(
+        clickedLayer,
+        'visibility',
+        'visible'
+        );
+    }
 }
 </script>
 {% endblock %}

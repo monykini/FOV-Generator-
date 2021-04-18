@@ -9,7 +9,7 @@
 }
 .calculate{
 position: fixed;
-top: 5.6rem;;
+top: 5.6rem;
 left: 0;
 z-index: 9999;
 }
@@ -30,6 +30,17 @@ z-index: 9999;
     right: 1vw;
     width: 250px;
 }
+.overlay-layers{
+    position: fixed;
+    top: 5.6rem;
+    min-height: 20px;
+    right: 35vw;
+    width: 30vw;
+    min-width: 250px;
+    z-index: 99;
+    
+}
+
 
 .mapboxgl-ctrl-top-right .mapboxgl-ctrl {
     background-color: #2f2f2f;

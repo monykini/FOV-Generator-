@@ -132,6 +132,7 @@ class Hexa():
     def beta_flatness(self):
 
         if len(self.points) < 10:
+            return
             raise NotEnoughPoints
 
         cube , min_total_x , min_total_y , min_total_z ,max_x,max_y,max_z = self.create_cube(self.points)

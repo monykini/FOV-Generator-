@@ -8,7 +8,7 @@ from . import views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('',views.index , name='homepage'),
-    path('tiles/', include('raster.urls')),
+    # path('tiles/', include('raster.urls')),
     path('Account/', include('users.urls')),
     path('generate/',include('generator.urls'))
 ]
