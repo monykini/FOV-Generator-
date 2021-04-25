@@ -37,6 +37,10 @@ def registration_view(request):
             return render(request,'user/registration.html',{'form':form}) 
     return render(request,'user/registration.html',{'form':form})
 
+def settings_view(request):
+    return render(request,'user/settings.html')
+
+
 
 def logout_view(request):
     logout(request)

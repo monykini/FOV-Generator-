@@ -1,6 +1,8 @@
 
 from pathlib import Path
 import os
+from shapely import speedups
+speedups.disable()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 
 
@@ -82,9 +84,9 @@ WSGI_APPLICATION = 'FOV.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': 'fov',
+        'NAME': 'fyp',
         'USER': 'postgres',
-        'PASSWORD': '123456789',
+        'PASSWORD': 'mony',
         'HOST': 'localhost',
         'PORT': '',
         'ATOMIC_REQUESTS':True
@@ -145,7 +147,6 @@ PROCESSED_TILES_DIRECTORY = os.path.join(str(os.path.join(BASE_DIR)), 'processed
 Islamabad_bbox={"min_lat":72.818069,"max_lat":73.383865 , "min_lon":33.496170 , "max_lon":33.807679 }
 Islamabad_bbox_square=[[33.496170,72.818069],[33.496170,73.383865],[33.807679,72.818069],[33.807679,73.383865]]
 
-if os.name == 'nt':
-    VENV_BASE = os.environ['VIRTUAL_ENV']
-    os.environ['PATH'] = os.path.join(VENV_BASE, 'Lib\\site-packages\\osgeo') + ';' + os.environ['PATH']
-    os.environ['PROJ_LIB'] = os.path.join(VENV_BASE, 'Lib\\site-packages\\osgeo\\data\\proj') + ';' + os.environ['PATH']
+VENV_BASE = os.environ['VIRTUAL_ENV']
+os.environ['PATH'] = os.path.join(VENV_BASE, 'Lib\\site-packages\\osgeo') + ';' + os.environ['PATH']
+os.environ['PROJ_LIB'] = os.path.join(VENV_BASE, 'Lib\\site-packages\\osgeo\\data\\proj') + ';' + os.environ['PATH']
