@@ -1,13 +1,15 @@
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+
+{% extends 'base/loggedBase.html' %}
+{% load static %}
+{% block files %}
+<script src="{% static 'js/jquery-3.5.1.min.js' %}"></script>
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/eqcss/1.2.1/EQCSS.min.js"></script>
 <link href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css" rel="stylesheet" />
 <link href="https://cdn.datatables.net/1.10.9/css/jquery.dataTables.min.css" rel="stylesheet" />
-
-{% extends 'base/homebase.html' %}
-
-
+{% endblock %}
 
 {% block content %}
 
@@ -535,36 +537,34 @@ form .btn{
 				   <div class="row" style="height:100%">
 				      <div class="col-md-3">
 				         <div href=# class="d-inline">
-				            <img src="https://image.flaticon.com/icons/svg/236/236831.svg" width=130px style="margin:0;margin-left: 16px;"><br>
-				            <p class="pl-2 mt-2"><a href="#" class="btn" style="color:#8f9096;font-weight:600">Edit Picture</a></p>
+                    {% if ProfileData.ProfileImage %}
+                    <img src="{{ProfileData.ProfileImage.url}}" width=130px height=130px style="margin:0;margin-left: 16px; border-radius:80px">
+                    {% else %}
+                    <img src="https://image.flaticon.com/icons/svg/236/236831.svg" width=130px height=130px style="margin:0;margin-left: 16px;border-radius:80px">
+                    {% endif %}
+				            <br>
+                    <form action="" method="post" enctype="multipart/form-data">
+                      {% csrf_token %}
+                      <p class="pl-2 mt-2"><a href="#" class="btn" style="color:#8f9096;font-weight:600" onclick="clickImageInput();">Edit Picture</a></p>
+                      <input type="file" name="myImage" id="myImage" accept="image/x-png,image/gif,image/jpeg" onChange="clickSubmit();" hidden/>
+                      <button type="submit" name = "profileImage" id="profileImageButton" class="btn" hidden></button>
+                    </form>
 				         </div>
 				      </div>
 				      <div class="col-md-9">
 				         <div class="container">
 				            <form>
+                      {% for field in ProfileForm %}
 				               <div class="form-group">
-				                  <label for=fullName>Full Name</label>
-				                  <input type="text" class="form-control" id="fullName">
+				                  <label for=fullName>{{field.label}}</label>
+				                  {{field}}
 				               </div>
-				               <div class="form-group">
-				                  <label for=email>Email</label>
-				                  <input type="email" class="form-control" id="email">
-				               </div>
-				               <div class="form-group">
-				                  <label for=pass>Password</label>
-				                  <input type="password" class="form-control" id="pass">
-				               </div>
-				               <div class="form-group ">
-				                  <label for=birthday>Birthday</label>
-				                  <input type="date" class="form-control" id="birthday">
-				               </div>
+                       {% endfor %}
 				               <div class="row mt-5">
 				                  <div class="col">
 				                     <button type="button" class="btn btn-primary btn-block">Save Changes</button>
 				                  </div>
-				                  <div class="col">
-				                     <button type="button" class="btn btn-default btn-block">Cancel</button>
-				                  </div>
+
 				               </div>
 				            </form>
 				         </div>
@@ -587,58 +587,16 @@ form .btn{
 				   <div class="row" style="height:100%">
 				      <div class="col-md-9">
 				         <div class="container">
-				            <form>
-				            	<div class="form-group">
-				                	<label for=fontsize>Font Size</label>
-					                <select id="fontSelector" class="js-example-basic-single" name="Font Size" style="width: 50%;display: block;
-					                background:#544c5f;color: white; height: 42px;" >
-									  <option value="8">8px</option>
-									  <option value="9">9px</option>
-									  <option value="10">10px</option>
-									  <option value="11">11px</option>
-									  <option value="12">12px</option>
-									  <option value="13">13px</option>
-									  <option value="14">14px</option>
-									  <option value="15">15px</option>
-									  <option value="16">16px</option>
-									  <option value="17">17px</option>
-									  <option value="18">18px</option>
-									  <option value="19">19px</option>
-									  <option value="20">20px</option>
-									  <option value="21">21px</option>
-									  <option value="22">22px</option>
-									  <option value="23">23px</option>
-									  <option value="24">24px</option>
-									 </select>
-								</div>
-				               <div class="form-group">
-				                	<label for=colorScheme>Color Scheme</label>
-					                <select id="colorSelector" class="js-example-basic-single" name="Color Scheme" style="width: 50%;display: block;
-					                background:#544c5f;color: white; height: 42px;" >
-									  <option value="nightmode">Night Mode</option>
-									  <option value="colorblindassit">Color Blind Assist</option>
-									  <option value="colorblindassit">Light Theme</option>
-									 </select>
-								</div>
-				               <div class="form-group">
-				                	<label for=Fontfam>Font Family</label>
-					                <select id="fontFam" class="js-example-basic-single" name="Font Family" style="width: 50%;display: block;
-					                background:#544c5f;color: white; height: 42px;" >
-									  <option value="Arial	">Arial</option>
-									  <option value="Calibri">Calibri</option>
-									  <option value="Verdana">Verdana</option>
-									  <option value="Tahoma">Tahoma</option>
-									  <option value="Helvetica">Helvetica</option>
-									  <option value="Century Gothic">Century Gothic</option>
-									 </select>
-								</div>
-
+				            <form id="accessibility" method="post">
+                      {% csrf_token %}
+                      {% for field in AccessForm %}
+                      <div class="form-group">
+                      <label for=fontsize>{{field.label}}</label>
+                      {{field}}
+                      {% endfor %}
 				               <div class="row mt-5">
 				                  <div class="col">
-				                     <button type="button" class="btn btn-primary btn-block">Save Changes</button>
-				                  </div>
-				                  <div class="col">
-				                     <button type="button" class="btn btn-default btn-block">Cancel</button>
+				                     <button type="submit" name="accessibility" class="btn btn-primary btn-block">Save Changes</button>
 				                  </div>
 				               </div>
 				            </form>
@@ -723,9 +681,12 @@ form .btn{
         </div>
     </div>
 </section>
+{% block script %}
 
 <script type="text/javascript">
 	
+  jQuery(".settings").css('display','none');
+  jQuery("#profileSets").css('display','block');
 	
 
 	const jbd = jQuery(document);
@@ -828,6 +789,16 @@ form .btn{
 	  this.parentNode.parentNode.parentNode.removeChild(this.parentNode.parentNode);
 	}
 
+  function clickSubmit(){
+    document.getElementById("profileImageButton").click()
+  }
+
+  function clickImageInput(){
+    document.getElementById("myImage").click()
+  }
 </script>
+
+{% endblock %}
+
 
 {% endblock %}

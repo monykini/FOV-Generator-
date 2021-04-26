@@ -1,17 +1,22 @@
 from django.shortcuts import render
 from django.http import JsonResponse
+from django.contrib.auth.decorators import login_required
+from django.contrib.gis import geos
+
 from GenClasses.main import FOV_fucade
 from .models import modelPoint
+from GenClasses.Shapes import userMarker
+
 import jsonpickle
 import json
 import jsonpickle
 from numba import jit , njit
 from numba.types import float64,int32,int64,float32,List
 import numpy as np
-from GenClasses.Shapes import userMarker
-from django.contrib.gis import geos
 import time
 
+
+@login_required
 def genrator(request):
     if request.method == 'POST':
         t1 = time.perf_counter()

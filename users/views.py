@@ -1,9 +1,13 @@
 from django.shortcuts import render , redirect
 from django.contrib.auth import authenticate, login , logout
+from django.contrib.auth.models import User
+from django.contrib.auth.decorators import login_required
 
+from .models import Profile
+from .forms import LoginForm,SignUpForm,UserProfileForm,AccessibilityForm
 
-from .forms import LoginForm,SignUpForm
-
+from io import StringIO
+from PIL import Image
 
 
 def login_view(request):
@@ -30,6 +34,7 @@ def registration_view(request):
             username = form.cleaned_data.get('username')
             raw_password = form.cleaned_data.get('password1')
             user = authenticate(username=username, password=raw_password)
+            ProfileData = Profile.objects.Create(User = user)
             login(request, user)
             return redirect('map')
         else:
@@ -37,8 +42,33 @@ def registration_view(request):
             return render(request,'user/registration.html',{'form':form}) 
     return render(request,'user/registration.html',{'form':form})
 
+@login_required
 def settings_view(request):
-    return render(request,'user/settings.html')
+    if request.method == 'POST':
+        if "accessibility" in request.POST:
+            instance = Profile.objects.get(User = request.user)
+            form = AccessibilityForm(request.POST, prefix="accessibility",instance = instance)
+            if form.is_valid():
+                AF = form.save(commit=False)
+                AF.User = request.user
+                AF.save()
+                print('ok')
+        if "profileImage" in request.POST:
+            print(request.POST)
+            image = request.FILES.get('myImage',None)
+            filename = f"{request.user.username}.png"
+            print(filename)
+            instance = Profile.objects.get(User = request.user)
+            instance.ProfileImage.save(filename,image,save=True)
+            print(instance.ProfileImage)
+            instance.save()
+            print(image)
+
+
+    ProfileForm = UserProfileForm(initial = User.objects.filter(email = request.user.email).values()[0],prefix='profile')
+    ProfileData = Profile.objects.filter(User = request.user)[0]
+    AccessForm = AccessibilityForm(initial = Profile.objects.filter(User = request.user).values()[0], prefix="accessibility")
+    return render(request,'user/settings.html',  {'ProfileForm':ProfileForm , 'ProfileData': ProfileData , "AccessForm":AccessForm})
 
 
 

@@ -66,7 +66,6 @@
       </ul>
       <div class="ml-auto my-2 my-lg-0" style="display: flex;">
         {% if user.is_authenticated %}
-          <a class="nav-link" href="{% url 'settings' %}" style="color: #ffffff;">Settings</a>
         <a href="{% url 'logout' %}"><button class="btn btn-dark rounded-pill">Sign Out</button></a>
         {% else %}
         <a href="{% url 'registartion' %}"><button class="btn btn-dark rounded-pill">Get Account</button></a>

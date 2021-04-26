@@ -127,7 +127,7 @@ class hexaGrid():
                         i=0
                         for flatpoints in hexa.falt_sufrace_points:
                                 flat_Surface = flatSurface(flatpoints,hexa)
-                                flat_Surface.insidePoints = hexa.falt_sufrace_allPoints[i]
+                                # flat_Surface.insidePoints = hexa.falt_sufrace_allPoints[i]
                                 flat_Surface.get_area_flat_surface()
                                 if flat_Surface.area >= self.CoverageArea:
                                         fov  = FOV()

@@ -2087,6 +2087,10 @@ hr {
   height: unset;
 }
 
+.form-control:disabled, .form-control[readonly] {
+  background-color: #383340;
+  opacity: 1;
+}
 /* Navbar */
 .navbar-floating {
   position: absolute;

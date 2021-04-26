@@ -307,10 +307,7 @@ class userMarker():
     def get_square(self):
         if self.square == 0:
             transformer = Transformer.from_crs("epsg:4326", "epsg:3857")
-            # lon first lat last
-            # print(self.latlon)
             x2,y2 = transformer.transform(self.latlon[0], self.latlon[1])
-            # print(x2,y2)
             point = shapely.geometry.Point(x2,y2)
             #anti-clock wise top - right corner
             og_square = point.buffer(self.area , cap_style=3)
@@ -361,17 +358,25 @@ class FOV():
 
     def create_fov(self , hexa_center , userPoint):
         raw_hight_vector = [hexa_center[0]-userPoint[0] ,hexa_center[1]-userPoint[1]]
+
         height_vector = [abs(hexa_center[0]-userPoint[0]) ,abs(hexa_center[1]-userPoint[1])]
         height_value = math.sqrt(math.pow(hexa_center[0]-userPoint[0],2)+math.pow(hexa_center[1]-userPoint[1],2))
+
         self.height = height_value 
+
         hypo = height_value / math.cos((self.angle/2)*(math.pi/180))
+
         length_new_vector =abs( hypo * math.sin((self.angle/2)*(math.pi/180)))
+
         height_normal = [height_vector[0]/height_value , height_vector[1]/height_value]
+
         matrix_height_normal = [[height_normal[0]],[height_normal[1]]]
         matix_clock_wise = [[0 , -1],[1 , 0]]
         matix_anticlock_wise = [[0 , 1],[-1 , 0]]
+
         vector1 = ((np.matmul(matix_clock_wise,matrix_height_normal)*length_new_vector).ravel()).tolist()
         vector2 = ((np.matmul(matix_anticlock_wise,matrix_height_normal)*length_new_vector).ravel()).tolist()
+
         if (raw_hight_vector[0] * raw_hight_vector[1]) > 0 :
             vertices = [hexa_center , [userPoint[0]+vector1[0] , userPoint[1]+vector1[1]],[userPoint[0]+vector2[0] , userPoint[1]+vector2[1]]]
         else:
@@ -382,61 +387,12 @@ class FOV():
         self.area = polygon.area
         self.get_fov_4326()
 
-    def get_obstruction(self,points,height,marker):
-        filtered_ponts = []
-        fovPoints = []
+    def get_obstruction(self,sufaceHeight,marker):
         vertices = shapely.geometry.Polygon(tuple([tuple(li[::-1]) for li in self.get_fov_4326()]))
         fov = geos.Polygon(tuple(vertices.exterior.coords))
-        modelpoints = modelPoint.objects.filter(wsg48Point__intersects = fov)
-        buildings = buildingData.objects.filter(geom__intersects = fov)
-        lytes = {}
+        fovInsidePoints = modelPoint.objects.filter(wsg48Point__intersects = fov)
         
-        for b in buildings:
-                p = modelpoints.filter(wsg48Point__intersects = b.geom)
-                for pi in p:
-                        lytes[pi.id] = b.height
-        
-        for p in modelpoints:
-            poin = Points(list(p.wsg48Point.coords)[::-1], list(p.macPoint.coords)[::-1] , json.loads(p.pixal_xy) , json.loads(p.world_pixal_xy) , p.height+lytes.get(p.id,0) , json.loads(p.color))
-            print(poin.height , marker.height)
-            if poin.height > marker.height + 1.651:
-                filtered_ponts.append(poin)
-        print(filtered_ponts)
-        cube , min_total_x , min_total_y , min_total_z ,max_x,max_y,max_z = self.create_cube(filtered_ponts,1)
-        if min_total_x == None:
-            return None
-        flat_surface_polygons=[]
-        polygon = []
-        polygon2=[]
-        scanner =np.full((max_x+1,max_y+1), 9)
-        scanner[...]=-1
-        for i in range(max_x+1):
-            for j in range(max_y+1):
-                for z in range(max_z, -1, -1):
-                    if cube[z][i][j] >= 1:
-                        scanner[i][j] = z
-        print(scanner)
-        print("#=========")
-        for x in range(len(scanner)):
-            array = []
-            for y in range(len(scanner[x])):
-                if scanner[x][y] != -1:
-                    array.append([x,y])
-            if len(array) >= 2:
-                for poi in p:
-                    if poi.world_pixal_xy == [array[0][0]+min_total_x,array[0][1]+min_total_y]:
-                        polygon.append(poi)
-                    if poi.world_pixal_xy == [array[-1][0]+min_total_x,array[-1][1]+min_total_y]:
-                        polygon2.append(poi)
-            elif len(array) == 1:
-                for poi in p:
-                    if poi.world_pixal_xy == [array[0][0]+min_total_x,array[0][1]+min_total_y]:
-                        polygon.append(poi)
-        if len(polygon) > 2 and len(polygon2) > 0:
-            flat_surface_polygons.append(polygon+polygon2[::-1])
-
-        print(flat_surface_polygons)
-        return flat_surface_polygons
+        return fovInsidePoints
 
 
 

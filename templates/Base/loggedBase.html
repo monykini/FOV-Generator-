@@ -51,7 +51,10 @@
         </li>
         <li class="nav-item">
           <a class="nav-link" href="{% url 'map' %}">Map</a>
+        <li class="nav-item">
+          <a class="nav-link" href="{% url 'settings' %}" >Settings</a>
         </li>
+      </li>
       </ul>
       <div class="ml-auto my-2 my-lg-0">
         {% if user.is_authenticated %}

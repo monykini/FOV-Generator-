@@ -84,9 +84,9 @@ WSGI_APPLICATION = 'FOV.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': 'fyp',
+        'NAME': 'fov',
         'USER': 'postgres',
-        'PASSWORD': 'mony',
+        'PASSWORD': '123456789',
         'HOST': 'localhost',
         'PORT': '',
         'ATOMIC_REQUESTS':True
@@ -126,6 +126,7 @@ USE_L10N = True
 
 USE_TZ = True
 
+LOGIN_URL ="/Account/login"
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.1/howto/static-files/
