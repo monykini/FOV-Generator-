@@ -67,3 +67,4 @@ class AccessibilityForm(forms.ModelForm):
     class Meta:
         model = Profile
         fields = ('Font_Family', 'Font_Size', 'Color_Scheme')
+

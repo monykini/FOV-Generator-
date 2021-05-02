@@ -13,6 +13,14 @@ top: 5.6rem;
 left: 0;
 z-index: 9999;
 }
+.savehotspot{
+
+    position: fixed;
+    top: 9rem;
+    left: 0;
+    z-index: 9999;
+}
+    
 
 
 .overlay{
@@ -75,9 +83,10 @@ z-index: 9999;
     color: #bbadd2;
 }
 
-.areaForm{
+.areaForm , .hotspotform{
     display: None;
 }
+
 #flatSurfaceSumary{
 
 }

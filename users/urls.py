@@ -9,4 +9,6 @@ urlpatterns = [
     path('logout',views.logout_view , name='logout'),
     path('registration',views.registration_view , name='registartion'),
     path('settings',views.settings_view , name='settings'),
+    path('save/hotspot',views.save_hotspots , name='savehotspot'),
+    path('list/location/hotspots',views.list_location_hotspots , name='listlocationhotspots'),
 ]

@@ -9,6 +9,7 @@
 <script src= "https://api.mapbox.com/mapbox-gl-js/v1.12.0/mapbox-gl.js" ></script>
 <script src="https://api.tiles.mapbox.com/mapbox.js/plugins/turf/v3.0.11/turf.min.js" ></script>
 <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.5.1/mapbox-gl-geocoder.css" type="text/css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js" integrity="sha512-qTXRIMyZIFb8iQcfjXWCO8+M5Tbc38Qi5WzdPOYZHIlZpzBHG3L3by84BBBOiRGiEb7KKtAOAs5qYdUiZiQNNQ==" crossorigin="anonymous"></script>
 <link rel="stylesheet" href="{% static 'css/map.css' %}">
 <style>
 	body { margin: 0; padding: 0; }
@@ -19,6 +20,7 @@
 {% block content %}
 <section class="logged-section pt-5">
     <button class="btn btn-primary neonButton calculate" onclick="show('areaForm')" >Calculate Area</button>
+    <button class="btn btn-primary neonButton savehotspot" onclick="showHotspotsRetrieveFrom();" >save marker</button>
     <div id="map"></div>
     
     
@@ -32,6 +34,20 @@
                 <input type="text" name="lonlat" id="lonlat" hidden>
                 <button type="button" class="btn btn-primary neonButton mx-1" onclick="tile_request()">Submit</button>
                 <button type="button" class="btn btn-danger mx-1" onclick="hide('areaForm')">Close</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="container overlay hotspotform">
+        <div class="row my-5 wrapper mx-auto"  style="width: 30vw;">
+            <form id = 'hotspotretreiveForm' class="mx-auto" style="width: 100%;">
+                <div class="form-group">
+                  <label for="area">Search area (meter square)</label>
+                  <input type="number" class="form-control" id="area" name='hotspotarea'  placeholder="Enter area m2" value="200">
+                </div>
+                <input type="text" name="hotspotlonlat" id="lonlat" hidden>
+                <button type="button" class="btn btn-primary neonButton mx-1" onclick="retrieveHotSpots()">Submit</button>
+                <button type="button" class="btn btn-danger mx-1" onclick="hideHotspotsRetrieveFrom()">Close</button>
             </form>
         </div>
     </div>
@@ -184,7 +200,12 @@ map.on('load', function () {
             break;
         }
     }
-
+    map.loadImage(
+        'https://api.tiles.mapbox.com/v3/marker/pin-s+cc4422.png',
+        function (error, image) {
+            if (error) throw error;
+            map.addImage('custom-marker', image);}
+    )
     map.addLayer(
         {
             'id': '3d-buildings',
@@ -325,7 +346,108 @@ function create_square(data){
     });
 
 }
+// hotspot function
 
+function saveHotSpot(){
+    if(lnglat.length < 1){
+        alertify.error("No point is selected")
+    }
+    $.ajax({
+        type:"post",
+        url: "{% url 'savehotspot' %}",
+        data:$("hotspotForm").seralize(),
+        success:function(data){
+            alertify.success("Marker saved")
+        },
+        error:function(data){
+            alertify.error("Marker can not be saved")
+        }
+    })
+}
+
+function showHotspotsRetrieveFrom(data="hotspotform"){
+    if(data === "hotspotform"){
+        if(lnglat.length < 1){
+            alertify.error("No point is selected")
+        }
+        else{
+            $(`.${data}`).show()
+        }
+    }
+    else{
+        $(`.${data}`).show()
+    }
+}
+function hideHotspotsRetrieveFrom(data="hotspotform"){
+    $(`.${data}`).hide()
+
+    if(data === "hotspotform"){
+        $('#hotspotretreiveForm')[0].reset();
+}
+}
+
+function retreieveHotspots(){
+    
+}
+
+
+function retrieveHotSpots(){
+    latlon = JSON.stringify([lnglat['lat'],lnglat['lng']])
+    console.log($('#areaForm [name = hotspotarea]').val())
+    console.log(latlon)
+    $('#hotspotretreiveForm [name = hotspotlonlat]').val(latlon)
+    $.ajax({
+        type:"post",
+        url: "{% url 'listlocationhotspots' %}",
+        data:$("#hotspotretreiveForm").serialize(),
+        success:function(data){
+            alertify.success("Markers retreived")
+            addhotspotLayer(data)
+            hideHotspotsRetrieveFrom()
+        },
+        error:function(data){
+            alertify.error("Markers can not be retrieved")
+        }
+    })
+}
+
+
+function addhotspotLayer(data){
+    console.log(data)
+    if (map.getLayer("hotspotLayer")) {
+        
+        map.removeLayer("hotspotLayer");
+    }
+    if (map.getSource("hotspotSource")) {
+
+        map.removeSource("hotspotSource");
+    }  
+
+    map.addSource('hotspotSource', {
+    'type': 'geojson',
+    'data':data
+    });
+
+    map.addLayer({
+    'id': 'hotspotLayer',
+    'type': 'symbol',
+    'source': 'hotspotSource',
+    'layout': {
+        'icon-image': 'custom-marker',
+        // get the title name from the source's "title" property
+        'text-field': ['get', 'name',],
+        'text-font': [
+        'Open Sans Semibold',
+        'Arial Unicode MS Bold'
+        ],
+        'text-offset': [0, 1],
+        'text-anchor': 'top'
+    },
+    paint: {
+        "text-color": "#ffffff"
+    }
+    });
+}
 
 // layer checkbox ----------------------------------------------------------------
 

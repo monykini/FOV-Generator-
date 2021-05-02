@@ -1,6 +1,5 @@
-from django.db import models
 from django.contrib.auth.models import User
-
+from django.contrib.gis.db import models
 
 
 SIZE_CHOICES = ((0,'8px') , (1,'9px') ,(2,'10px') ,(3,'11px') )
@@ -15,3 +14,9 @@ class Profile(models.Model):
     Font_Family =  models.PositiveSmallIntegerField(choices = FONT_CHOICES, default = 'Sans' )
     ProfileImage = models.ImageField(null=True, blank=True,upload_to='profiles/')
 # Create your models here.
+
+class Hotspots(models.Model):
+    User = models.ForeignKey(User, on_delete=models.CASCADE)
+    Name = models.CharField(max_length = 20)
+    SpotImage = models.ImageField(null=True, blank=True,upload_to='hotspots/')
+    Location = models.PointField(null = True)
