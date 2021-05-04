@@ -10,7 +10,9 @@ urlpatterns = [
     path('',views.index , name='homepage'),
     # path('tiles/', include('raster.urls')),
     path('Account/', include('users.urls')),
-    path('generate/',include('generator.urls'))
+    path('generate/',include('generator.urls')),
+    path('api/',include('API.urls')),
+    
 ]
 urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -125,7 +125,7 @@ def list_location_hotspots(request):
             hotspot['properties'] = {'name':hot.Name , 'hotspotimage':hot.SpotImage.url}
             allHotSpots['features'].append(hotspot)
         
-
+        
         return JsonResponse(allHotSpots)
     return JsonResponse({"status":'not ok'},status = 400)
     
