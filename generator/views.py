@@ -3,6 +3,9 @@ from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.contrib.gis import geos
 
+from rest_framework.authtoken.models import Token
+
+
 from GenClasses.main import FOV_fucade
 from .models import modelPoint
 from GenClasses.Shapes import userMarker
@@ -18,6 +21,8 @@ import time
 
 @login_required
 def genrator(request):
+    request.session['key'] = Token.objects.get(user = request.user).key
+    print(request.session['key'])
     if request.method == 'POST':
         t1 = time.perf_counter()
         latlon = json.loads(request.POST.get('lonlat',[0,0]))

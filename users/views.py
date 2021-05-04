@@ -5,7 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.gis import geos
 from django.http import JsonResponse
 
-from .models import Profile,Hotspots
+from .models import Profile, Hotspots
 from .forms import LoginForm,SignUpForm,UserProfileForm,AccessibilityForm
 
 from io import StringIO
@@ -63,11 +63,10 @@ def settings_view(request):
             instance.ProfileImage.save(filename,image,save=True)
             instance.save()
 
-    hotspots = HotSpot.objects.get(User = request.user)
     ProfileForm = UserProfileForm(initial = User.objects.filter(email = request.user.email).values()[0],prefix='profile')
     ProfileData = Profile.objects.filter(User = request.user)[0]
     AccessForm = AccessibilityForm(initial = Profile.objects.filter(User = request.user).values()[0], prefix="accessibility")
-    return render(request,'user/settings.html',  {'ProfileForm':ProfileForm , 'ProfileData': ProfileData , "AccessForm":AccessForm, "hotspots":hotspots})
+    return render(request,'user/settings.html',  {'ProfileForm':ProfileForm , 'ProfileData': ProfileData , "AccessForm":AccessForm,})
 
 
 

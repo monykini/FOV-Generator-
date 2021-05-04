@@ -85,3 +85,5 @@ class UpdateHotSpot(generics.UpdateAPIView):
         user = self.request.user
         return  Hotspots.objects.filter(User = user)
 
+
+

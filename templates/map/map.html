@@ -20,7 +20,6 @@
 {% block content %}
 <section class="logged-section pt-5">
     <button class="btn btn-primary neonButton calculate" onclick="show('areaForm')" >Calculate Area</button>
-    <button class="btn btn-primary neonButton savehotspot" onclick="showHotspotsRetrieveFrom();" >save marker</button>
     <div id="map"></div>
     
     
@@ -34,20 +33,6 @@
                 <input type="text" name="lonlat" id="lonlat" hidden>
                 <button type="button" class="btn btn-primary neonButton mx-1" onclick="tile_request()">Submit</button>
                 <button type="button" class="btn btn-danger mx-1" onclick="hide('areaForm')">Close</button>
-            </form>
-        </div>
-    </div>
-
-    <div class="container overlay hotspotform">
-        <div class="row my-5 wrapper mx-auto"  style="width: 30vw;">
-            <form id = 'hotspotretreiveForm' class="mx-auto" style="width: 100%;">
-                <div class="form-group">
-                  <label for="area">Search area (meter square)</label>
-                  <input type="number" class="form-control" id="area" name='hotspotarea'  placeholder="Enter area m2" value="200">
-                </div>
-                <input type="text" name="hotspotlonlat" id="lonlat" hidden>
-                <button type="button" class="btn btn-primary neonButton mx-1" onclick="retrieveHotSpots()">Submit</button>
-                <button type="button" class="btn btn-danger mx-1" onclick="hideHotspotsRetrieveFrom()">Close</button>
             </form>
         </div>
     </div>
@@ -90,11 +75,18 @@
         </div>
     </div>
 </section>
+
 {% endblock %}
 
 
 {% block script %}
 <script>
+
+$.ajaxSetup({
+    headers: { "X-CSRFToken": '{{csrf_token}}' ,'Authorization':"Token {{request.session.key}}"}
+});
+
+
 alertify.set('notifier','position', 'top-center');
 var markers01=[];
 var lnglat=[];
@@ -124,9 +116,7 @@ function hide(data){
 }
 
 
-$.ajaxSetup({
-    headers: { "X-CSRFToken": '{{csrf_token}}' }
-});
+
 var currentMarkers=[];
 mapboxgl.accessToken = 'pk.eyJ1IjoibW9ueWtpbmkxMTEiLCJhIjoiY2tmeWE2ZmZzMjMzczJwcGRreGt5ZHpzcSJ9.2fx-rNkpReTIWWzjGTJo_g';
     var map = new mapboxgl.Map({
@@ -242,6 +232,32 @@ map.on('load', function () {
         },
         labelLayerId
     );
+
+    
+    // map.addSource('mapbox-dem', {
+    // 'type': 'raster-dem',
+    // 'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
+    // 'tileSize': 512,
+    // 'maxzoom': 14,
+    // });
+
+
+    // // add the DEM source as a terrain layer with exaggerated height
+    // map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1.5 });
+    
+    // // add a sky layer that will show when the map is highly pitched
+    // map.addLayer({
+    // 'id': 'sky',
+    // 'type': 'sky',
+    // 'paint': {
+    // 'sky-type': 'atmosphere',
+    // 'sky-atmosphere-sun': [0.0, 0.0],
+    // 'sky-atmosphere-sun-intensity': 15
+    // }
+    // });
+
+
+    loadHostspotLayer();
     });
 
 
@@ -319,14 +335,14 @@ function create_square(data){
     'data':JSON.parse(e.features[0].properties.fov)
     });
     map.addLayer({
-    'id': 'povLayer',
-    'type': 'fill',
-    'source': 'povSorce',
-    'paint': {
-    'fill-color': '#800000',
-    'fill-opacity': 0.6
-    },
-    'filter': ['==', '$type', 'Polygon']
+        'id': 'povLayer',
+        'type': 'fill',
+        'source': 'povSorce',
+        'paint': {
+        'fill-color': '#800000',
+        'fill-opacity': 0.6
+        },
+        'filter': ['==', '$type', 'Polygon']
     });
 
     $('#fovAreaSummary').text((fovData.properties.fovArea).toFixed(2)+ 'm2');
@@ -345,72 +361,24 @@ function create_square(data){
     map.getCanvas().style.cursor = '';
     });
 
+    
+
 }
 // hotspot function
 
-function saveHotSpot(){
-    if(lnglat.length < 1){
-        alertify.error("No point is selected")
-    }
+
+function loadHostspotLayer(){
     $.ajax({
-        type:"post",
-        url: "{% url 'savehotspot' %}",
-        data:$("hotspotForm").seralize(),
+        type:"get",
+        url: "{% url 'listhotspots' %}",
         success:function(data){
-            alertify.success("Marker saved")
-        },
-        error:function(data){
-            alertify.error("Marker can not be saved")
-        }
-    })
-}
-
-function showHotspotsRetrieveFrom(data="hotspotform"){
-    if(data === "hotspotform"){
-        if(lnglat.length < 1){
-            alertify.error("No point is selected")
-        }
-        else{
-            $(`.${data}`).show()
-        }
-    }
-    else{
-        $(`.${data}`).show()
-    }
-}
-function hideHotspotsRetrieveFrom(data="hotspotform"){
-    $(`.${data}`).hide()
-
-    if(data === "hotspotform"){
-        $('#hotspotretreiveForm')[0].reset();
-}
-}
-
-function retreieveHotspots(){
-    
-}
-
-
-function retrieveHotSpots(){
-    latlon = JSON.stringify([lnglat['lat'],lnglat['lng']])
-    console.log($('#areaForm [name = hotspotarea]').val())
-    console.log(latlon)
-    $('#hotspotretreiveForm [name = hotspotlonlat]').val(latlon)
-    $.ajax({
-        type:"post",
-        url: "{% url 'listlocationhotspots' %}",
-        data:$("#hotspotretreiveForm").serialize(),
-        success:function(data){
-            alertify.success("Markers retreived")
             addhotspotLayer(data)
-            hideHotspotsRetrieveFrom()
         },
         error:function(data){
-            alertify.error("Markers can not be retrieved")
+            console.error("Markers can not be retrieved")
         }
     })
 }
-
 
 function addhotspotLayer(data){
     console.log(data)
@@ -432,21 +400,56 @@ function addhotspotLayer(data){
     'id': 'hotspotLayer',
     'type': 'symbol',
     'source': 'hotspotSource',
+    "minzoom": 9,
     'layout': {
         'icon-image': 'custom-marker',
         // get the title name from the source's "title" property
-        'text-field': ['get', 'name',],
+        'text-field': ['get', 'Name',],
         'text-font': [
         'Open Sans Semibold',
         'Arial Unicode MS Bold'
         ],
-        'text-offset': [0, 1],
+        'text-offset': [0, 0.2],
         'text-anchor': 'top'
     },
     paint: {
         "text-color": "#ffffff"
     }
     });
+
+    map.on('click', 'hotspotLayer', function(e){
+    new mapboxgl.Popup()
+    .setLngLat(e.lngLat)
+    .setHTML(`<img src=${e.features[0].properties.SpotImage} alt="" height=200 width=200 >`)
+    .addTo(map);
+    })
+}
+
+
+function create_geojson(lat,lon){
+   text = ` {
+    "type": "Point",
+    "coordinates": [
+        ${lon},
+        ${lat}
+    ]
+    }`
+}
+
+
+function saveHotspot(){
+    $.ajax({
+        type:"post",
+        url: "{% url 'createhotspots' %}",
+        data:{"Name":"bridge" ,"Location":create_geojson(lat,lon),"SpotImage":image},
+        success:function(data){
+            loadHostspotLayer()
+        },
+        error:function(data){
+            console.error("Markers can not be creates")
+            console.error(data)
+        }
+    })
 }
 
 // layer checkbox ----------------------------------------------------------------

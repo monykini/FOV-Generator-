@@ -796,6 +796,22 @@ form .btn{
   function clickImageInput(){
     document.getElementById("myImage").click()
   }
+
+  function deletehotspot(id){
+    $.ajax({
+      type:"post",
+      method:'DELETE',
+      url: "{% url 'deletehotspots' id=000001 %}".replace("000001",id),
+      success:function(data){
+          alertify.success("Hotspot deleted")
+      },
+      error:function(data){
+          console.error("Hotspot could not be deleted")
+      }
+    })
+  }
+
+
 </script>
 
 {% endblock %}
