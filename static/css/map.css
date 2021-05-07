@@ -100,6 +100,54 @@ z-index: 9999;
 #map { position: absolute; top: 5rem; bottom: 0; width: 100%; }
 
 
+.loader-wrapper{
+    position: fixed;
+    height: 100%;
+    width: 100%;
+    top: 0;
+    left: 0;
+    background: #383340c7;
+    z-index: 9999;
+    display:none;
+}
+
+.loader{
+    position: absolute;
+    top: 50%;   left: 50%;
+    transform: translate(-50%,-50%);
+    width: 300px;  height: 300px;
+    border: 10px solid #fff;
+    border-color: #f1c40f transparent #8e44ad transparent;
+    border-radius: 50%;
+    animation: animate 2s infinite linear;
+}
+.loader::before,.loader::after{
+    content: '';
+    position: absolute;
+    top: 50%;   left: 50%;
+    transform: translate(-50%,-50%);
+    border: 10px solid #fff;
+    border-radius: 50%;
+    animation: animate 1.8s infinite linear;
+}
+.loader::before{
+    width: 60%;  height: 60%;
+    border-color: #c0392b transparent #3498db transparent;
+}
+.loader::after{
+    width: 30%;  height: 30%;
+    border-color: #27ae60 transparent #7f8c8d transparent;
+    animation-duration: 1.5s;
+}
+
+@keyframes animate{
+    0%{
+        transform: translate(-50%,-50%) rotate(0deg);
+    }
+    100%{
+        transform: translate(-50%,-50%) rotate(360deg);
+    }
+}
 
 @media(min-width: 992px){
 .navbar-expand-lg.navbar-floating {

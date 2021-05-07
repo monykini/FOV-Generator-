@@ -13,6 +13,9 @@ class Profile(models.Model):
     Color_Scheme = models.CharField(choices = COLOR_CHOICES , default = 'LM',max_length = 20)
     Font_Family =  models.PositiveSmallIntegerField(choices = FONT_CHOICES, default = 'Sans' )
     ProfileImage = models.ImageField(null=True, blank=True,upload_to='profiles/')
+    Marker_Color = models.CharField(max_length = 10 , default="9d6c6c")
+    Selected_Color = models.CharField(max_length = 10 , default="00ff11")
+    Hotspot_Color = models.CharField(max_length = 10 , default="d50101")
 # Create your models here.
 
 class Hotspots(models.Model):

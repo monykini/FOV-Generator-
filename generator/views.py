@@ -8,13 +8,12 @@ from rest_framework.authtoken.models import Token
 
 from GenClasses.main import FOV_fucade
 from .models import modelPoint
+from users.models import Profile
 from GenClasses.Shapes import userMarker
 
 import jsonpickle
 import json
 import jsonpickle
-from numba import jit , njit
-from numba.types import float64,int32,int64,float32,List
 import numpy as np
 import time
 
@@ -22,6 +21,7 @@ import time
 @login_required
 def genrator(request):
     request.session['key'] = Token.objects.get(user = request.user).key
+    request.session['profile'] = Profile.objects.filter(User = request.user).values()[0]
     print(request.session['key'])
     if request.method == 'POST':
         t1 = time.perf_counter()

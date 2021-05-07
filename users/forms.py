@@ -64,7 +64,10 @@ class AccessibilityForm(forms.ModelForm):
     Font_Size = forms.CharField(max_length = 20,widget=forms.Select(choices = SIZE_CHOICES,attrs={'class':'form-control rounded-left',"placeholder":"Username"}) )
     Color_Scheme = forms.CharField(max_length = 20,widget=forms.Select(choices = COLOR_CHOICES ,attrs={'class':'form-control rounded-left',"placeholder":"Username"}))
     Font_Family =  forms.CharField(max_length = 20,widget=forms.Select(choices = FONT_CHOICES,attrs={'class':'form-control rounded-left',"placeholder":"Username"}) )
+    Marker_Color =  forms.CharField(max_length = 20,widget=forms.TextInput(attrs={'class':'form-control rounded-left',"placeholder":"Username","type":"color","style":"height:50px"}) )
+    Selected_Color =  forms.CharField(max_length = 20,widget=forms.TextInput(attrs={'class':'form-control rounded-left',"placeholder":"Username","type":"color","style":"height:50px"}) )
+    Hotspot_Color =  forms.CharField(max_length = 20,widget=forms.TextInput(attrs={'class':'form-control rounded-left',"placeholder":"Username","type":"color","style":"height:50px"}) )
     class Meta:
         model = Profile
-        fields = ('Font_Family', 'Font_Size', 'Color_Scheme')
+        fields = ('Font_Family', 'Font_Size', 'Color_Scheme','Marker_Color','Selected_Color','Hotspot_Color')
 

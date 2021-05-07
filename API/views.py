@@ -4,6 +4,7 @@ from django.shortcuts import get_object_or_404
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.utils import timezone
+from django.contrib.gis import geos
 
 
 from rest_framework.views import APIView
@@ -17,6 +18,10 @@ from rest_framework.exceptions import APIException
 
 from .serializer import HotSpotSerializer
 from users.models import Hotspots
+from GenClasses.main import FOV_fucade
+from generator.models import modelPoint
+from GenClasses.Shapes import userMarker
+
 
 import datetime as dtmt
 import json
@@ -84,6 +89,27 @@ class UpdateHotSpot(generics.UpdateAPIView):
     def get_queryset(self):
         user = self.request.user
         return  Hotspots.objects.filter(User = user)
+
+
+class CreateLocationDetails(APIView):
+
+    allowed_methods =['Post']
+
+    def post(self, request,format=None):
+        latlon = json.loads(request.POST.get('lonlat',"[0,0]"))
+        area = request.POST.get('area',None)
+        fucade = FOV_fucade() 
+        data2 , hexas = fucade.create_FOV(request,latlon,float(area))
+        return Response({'flatSurfaces':data2 , 'Hexas':hexas })
+
+
+class DeleteLocationDetails(APIView):
+
+    allowed_methods =['Post','Delete']
+
+    def post(self, request,format=None,id=None):
+        models.modelUserMarker.get(id = id).delete()
+        return Response({'delete':True})
 
 
 

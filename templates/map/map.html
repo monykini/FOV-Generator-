@@ -74,6 +74,9 @@
         </div>
         </div>
     </div>
+    <div class="loader-wrapper">
+        <div class="loader"></div>
+    </div>
 </section>
 
 {% endblock %}
@@ -137,7 +140,7 @@ map.on('click', function(e){
         currentMarkers[i].remove();
     }
 }
-var marker = new mapboxgl.Marker()
+var marker = new mapboxgl.Marker({ "color": "{{request.session.profile.Marker_Color}}" })
 .setLngLat(e.lngLat)
 .addTo(map);
 lnglat = e.lngLat
@@ -150,6 +153,7 @@ function tile_request(){
     latlon = JSON.stringify([lnglat['lat'],lnglat['lng']])
     console.log($('#areaForm [name = area]').val())
     $('#areaForm [name = lonlat]').val(latlon)
+    $(".loader-wrapper").show()
     $.ajax({
         type:"post",
         url: "{% url 'map' %}",
@@ -162,11 +166,13 @@ function tile_request(){
             if (caluclateMarker){
                 caluclateMarker.remove();
             }
-            caluclateMarker = new mapboxgl.Marker({ "color": "#63b47c" }).setLngLat([lnglat['lng'],lnglat['lat']]).addTo(map);
+            caluclateMarker = new mapboxgl.Marker({ "color": "{{request.session.profile.Selected_Color}}" }).setLngLat([lnglat['lng'],lnglat['lat']]).addTo(map);
             $('.overlay-layers').show()
+            $(".loader-wrapper").hide()
         },
         error:function(data){
             alertify.error('We failed to get data please try again')
+            $(".loader-wrapper").hide()
         }
     })
 
@@ -190,8 +196,10 @@ map.on('load', function () {
             break;
         }
     }
+    hotspotColor = "{{request.session.profile.Hotspot_Color}}"
+    hotspotColor = hotspotColor.replace("#","")
     map.loadImage(
-        'https://api.tiles.mapbox.com/v3/marker/pin-s+cc4422.png',
+        `https://api.tiles.mapbox.com/v3/marker/pin-s+${hotspotColor}.png`,
         function (error, image) {
             if (error) throw error;
             map.addImage('custom-marker', image);}
@@ -434,6 +442,8 @@ function create_geojson(lat,lon){
         ${lat}
     ]
     }`
+
+    return text
 }
 
 
