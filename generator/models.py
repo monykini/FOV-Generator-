@@ -49,8 +49,13 @@ class modelUserMarker(models.Model):
 
 class modelFlatSurface(models.Model):
     marker = models.ForeignKey(modelUserMarker,on_delete=models.CASCADE)
+    area = models.FloatField(null=True,default=0)
     wsg48polygon = models.PolygonField(null = False)
     macpolygon = models.PolygonField(null = False)
+    distance=models.FloatField(null=True,default=0)
+    center = models.PointField(null=True,blank=True)
+    avgHeight = models.FloatField(null=True,default=0)
+
 
 
 class modelFOV(models.Model):
@@ -67,3 +72,8 @@ class modelHexas(models.Model):
     macpolygon = models.PolygonField(null = True)
     maccenter = models.PointField(null = True)
 
+class obstructions(models.Model):
+    flatSurface = models.ForeignKey(modelFlatSurface,on_delete=models.CASCADE)
+    wsg48Point = models.PointField()
+    macPoint = models.PointField()
+    height = models.FloatField()

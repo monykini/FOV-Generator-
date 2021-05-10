@@ -18,6 +18,8 @@ from django.contrib.gis import geos
 from numba import jit , njit
 from multiprocessing import Pool
 import time
+import tifffile
+import copy
 
 class tileGatherer():
         """
@@ -30,6 +32,7 @@ class tileGatherer():
         def __init__(self,userMarker):
                 self.userMarker = userMarker
                 self.converter = latlon_to_pixal_Converter()
+                self.og_tiles = []
     
 
         def get_tiles(self):
@@ -57,6 +60,8 @@ class tileGatherer():
                         total_tiles_matrix.append(temp)
 
                 total_tiles_matrix = total_tiles_matrix[::-1]
+                self.og_tiles = copy.deepcopy(total_tiles_matrix)
+                print(self.og_tiles,'tiles')
                 return total_tiles_matrix
 
         def check_files(self,total_tiles_matrix):
@@ -86,6 +91,19 @@ class tileGatherer():
                         del total_tiles_matrix[r[0]][r[1]]
                 return total_tiles_matrix
         
+        def raster_to_tiff(self):  
+                total_tiles_matrix = self.og_tiles
+                print(self.og_tiles)
+
+                for t in total_tiles_matrix:
+                        temp=[]
+                        for y in t:
+                                req = f'https://api.mapbox.com/v4/mapbox.terrain-rgb/15/{y[0]}/{y[1]}@2x.jpg90?access_token=pk.eyJ1IjoiY29zbW9ib2l5IiwiYSI6ImNrNHN0dmwzZjBwMnkzbHFkM3pvaTBybDQifQ.pfeEvOIWJc60mdHtn8_uAQ'
+                                req = requests.get(req)
+                                image = Image.open(BytesIO(req.content))
+                                data = np.asarray(image)
+                                image = tifffile.imwrite(f'{y[0]}-{y[1]}.tif', data, photometric='rgb')
+
 
         def get_raster_tiles(self,total_tiles_matrix):
                 filled_tiles_matrix = []
@@ -128,6 +146,7 @@ class tileGatherer():
                                         
                 t2 = time.perf_counter()
                 print(f"{t2-t1} Seconds")
+                # self.raster_to_tiff()
 
         def decode_tile(self,tile,iStartRange,iEndRange,filledTile):
                 transformer = Transformer.from_crs("epsg:4326", "epsg:3857")

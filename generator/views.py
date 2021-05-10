@@ -52,15 +52,17 @@ def model(request):
             Xs.append(pixal_xy[0])
         if pixal_xy[1] not in Ys:
             Ys.append(pixal_xy[1])
+    print(len(Xs))
+    print(len(Ys))
     minx = min(Xs)
     miny = min(Ys)
     matrix={}
     for x in Xs:
         for y in Ys:
             matrix[f'{x-minx},{y-miny}']= dic[str([x,y])]
-    print(minx)
-    print(miny)
-    print(matrix)
+    # print(minx)
+    # print(miny)
+    # print(matrix)
     
     return render(request,'3D/earth.html',{'points':jsonpickle.encode(matrix),'minx':minx,'miny':miny})
     

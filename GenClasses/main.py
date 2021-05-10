@@ -46,13 +46,20 @@ class FOV_fucade():
             for f in fov:
                 numberOfPoints = models.modelPoint.objects.filter(wsg48Point__intersects = f.wsg48polygon).count()
                 fovArea = f.macpolygon.area
-                flatSurfaceArea = FS.macpolygon.area
+                flatSurfaceArea = FS.area
                 fovProperties = {'numberOfPoints': numberOfPoints,'fovArea':fovArea,'flatSurfaceArea':flatSurfaceArea}
                 FovGeojson["features"].append({'type': 'Feature',"properties":"",'geometry': json.loads(f.wsg48polygon.geojson)})
                 FovGeojson["properties"] = fovProperties
+            
+            obsGeojson={"type": "FeatureCollection","features": [],"properties":""}
+            obstructions = models.obstructions.objects.filter(flatSurface = FS)
+            for obs in obstructions:
+                obsGeojson["features"].append({'type': 'Feature',"properties":"",'geometry': json.loads(obs.wsg48Point.geojson)})
+
+            obs = json.dumps(obsGeojson)
             properties = json.dumps(FovGeojson)
             geojson = json.loads(FS.wsg48polygon.geojson)
-            geojson = {'type': 'Feature','geometry': geojson,"properties":{'fov':properties}}
+            geojson = {'type': 'Feature','geometry': geojson,"properties":{'fov':properties,'obs':obs}}
             flatSurfaceGeojson["features"].append(geojson)
         
         hexagons = {"type": "FeatureCollection","features": []}

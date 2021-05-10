@@ -16,6 +16,8 @@
 
 </head>
 <body>
+	<div id="container"></div>
+
 </body>
 
 <script>
@@ -39,157 +41,202 @@ import { Sky } from 'https://unpkg.com/three@0.126.1/examples/jsm/objects/Sky.js
 import { VertexNormalsHelper } from 'https://unpkg.com/three@0.126.1/examples/jsm/helpers/VertexNormalsHelper.js';
 import { RectAreaLightHelper } from 'https://unpkg.com/three@0.126.1/examples/jsm/helpers/RectAreaLightHelper.js';
 import { ImprovedNoise } from 'https://unpkg.com/three@0.126.1/examples/jsm/math/ImprovedNoise.js';
-const worldWidth = 10, worldDepth = 10;
+import { FirstPersonControls } from 'https://unpkg.com/three@0.126.1/examples/jsm/controls/FirstPersonControls.js';
+// import * as GEO from "https://cdn.jsdelivr.net/npm/geo-three@0.0.7/build/geo-three.min.js"
 
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+let container, stats;
+			let camera, controls, scene, renderer;
+			let mesh, texture;
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize( window.innerWidth, window.innerHeight );
-document.body.appendChild( renderer.domElement );
+			const worldWidth = 512, worldDepth = 512;
+			const clock = new THREE.Clock();
 
-const geometry = new THREE.PlaneGeometry(100,100,worldWidth-1,worldDepth-1);
-const texture = new THREE.TextureLoader().load("{% static 'img/8081_earthlights10k.jpg' %}" );
-const material = new THREE.MeshBasicMaterial({ map: texture,});
-const cube = new THREE.Mesh( geometry, material );
-cube.geometry.verticesNeedUpdate = true;
-cube.geometry.attributes.position.needsUpdate = true;
+			init();
+			animate();
 
-var position = geometry.attributes.position.array;
-var normal = geometry.attributes.normal.array;
+			function init() {
 
+				container = document.getElementById( 'container' );
 
-scene.add( cube );      
-   
+				camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, 10000 );
 
-// camera.lookAt(-10,10,-10)
+				scene = new THREE.Scene();
+				scene.background = new THREE.Color( 0xefd1b5 );
+				// scene.fog = new THREE.FogExp2( 0xefd1b5, 0.0025 );
 
-const controls = new OrbitControls( camera, renderer.domElement );
-// controls.maxDistance=45
-// controls.minDistance=40
-controls.update();
-// controls.enabled=false
-camera.position.z = 50;
-camera.rotation.z = 1.2;
-// controls.enabled=true
-console.log(cube)
+				const data = generateHeight( worldWidth, worldDepth );
 
+				camera.position.set( 100, 800, - 800 );
+				camera.lookAt( - 100, 810, - 800 );
 
-// light
+				const geometry = new THREE.PlaneGeometry( 7500, 7500, worldWidth - 1, worldDepth - 1 );
+				geometry.rotateX( - Math.PI / 2 );
 
-const light = new THREE.AmbientLight( 0x404040 ); // soft white light
-scene.add( light );
+				const vertices = geometry.attributes.position.array;
 
+				for ( let i = 0, j = 0, l = vertices.length; i < l; i ++, j += 3 ) {
 
-//  helpers
+					vertices[ j + 1 ] = data[ i ] * 10;
 
-const axesHelper = new THREE.AxesHelper( 512 );
-scene.add( axesHelper );
+				}
 
+				texture = new THREE.CanvasTexture( generateTexture( data, worldWidth, worldDepth ) );
+				texture.wrapS = THREE.ClampToEdgeWrapping;
+				texture.wrapT = THREE.ClampToEdgeWrapping;
 
-const sphereHelper = new THREE.BoxGeometry(10,10,2);
-const objectHelper = new THREE.Mesh( sphereHelper, new THREE.MeshBasicMaterial( 0xff0000 ) );
-const boxHelper = new THREE.BoxHelper( objectHelper, 0xffff00 );
-scene.add( boxHelper );
+				mesh = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial( { map: texture } ) );
+				scene.add( mesh );
 
+				renderer = new THREE.WebGLRenderer();
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				container.appendChild( renderer.domElement );
 
-const plane = new THREE.Plane( new THREE.Vector3( 1, 1, 0.2 ), 3 );
-const planeHelper = new THREE.PlaneHelper( plane, 1, 0xffff00 );
-scene.add( planeHelper );
+				controls = new FirstPersonControls( camera, renderer.domElement );
+				controls.movementSpeed = 150;
+				controls.lookSpeed = 0.1;
 
-
-// const Vertexhelper = new VertexNormalsHelper( cube, 2, 0x00ff00 , 1 );
-// scene.add( Vertexhelper );
-
-const cameraHelper = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
-const helper = new THREE.CameraHelper( cameraHelper );
-helper.position.z = 512;
-scene.add( helper );
+				stats = new Stats();
+				container.appendChild( stats.dom );
 
 
-function changeShape(){
-    var k=100;
-    var time = performance.now() * 0.0005;
-    var index1,index2,index3;
-    for (var i = 0; i < position.length / 3; i++) {
-    index1 = index++
-    index2 = index++
-    index3 = index++
-    vector  = new THREE.Vector3(position[index1], position[index2], position[index3])
-    vector.normalize().multiplyScalar(10 + 2 * noise.perlin3(vector.x * k + time, vector.y * k, vector.z * k));
-    position[index1] = vector.x
-    position[index2] = vector.y
-    position[index3] = vector.z
-    }
-    index = 0
-    cube.geometry.normalsNeedUpdate = true;
-    cube.geometry.computeBoundingBox();
-    cube.geometry.computeBoundingSphere();
-    cube.geometry.computeVertexNormals();
-    // cube.geometry.mergeVertices();
-}
+				//
 
-let x, y, z, index;
-x = y = z = index = 0;
-let vector;
+				window.addEventListener( 'resize', onWindowResize );
 
-var data = generateHeight(worldWidth, worldDepth)
-console.log(my_var_parsed.length)
-function moveCube(){
-    for ( let i = 0, j = 0, l = 100; i < l; i ++, j += 3 ) {
-            position[ j + 2 ] = data[ i ] * 0.01;
+			}
+
+			function onWindowResize() {
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+				controls.handleResize();
+
+			}
+
+			function generateHeight( width, height ) {
+
+				let seed = Math.PI / 4;
+				window.Math.random = function () {
+
+					const x = Math.sin( seed ++ ) * 10000;
+					return x - Math.floor( x );
+
+				};
+
+				const size = width * height, data = new Uint8Array( size );
+				const perlin = new ImprovedNoise(), z = Math.random() * 100;
+
+				let quality = 1;
+
+				for ( let j = 0; j < 4; j ++ ) {
+
+					for ( let i = 0; i < size; i ++ ) {
+
+						const x = i % width, y = ~ ~ ( i / width );
+						data[ i ] += Math.abs( perlin.noise( x / quality, y / quality, z ) * quality * 1.75 );
+
+					}
+
+					quality *= 5;
+
+				}
+
+				return data;
+
+			}
+
+			function generateTexture( data, width, height ) {
+
+				let context, image, imageData, shade;
+
+				const vector3 = new THREE.Vector3( 0, 0, 0 );
+
+				const sun = new THREE.Vector3( 1, 1, 1 );
+				sun.normalize();
+
+				const canvas = document.createElement( 'canvas' );
+				canvas.width = width;
+				canvas.height = height;
+
+				context = canvas.getContext( '2d' );
+				context.fillStyle = '#000';
+				context.fillRect( 0, 0, width, height );
+
+				image = context.getImageData( 0, 0, canvas.width, canvas.height );
+				imageData = image.data;
+
+				for ( let i = 0, j = 0, l = imageData.length; i < l; i += 4, j ++ ) {
+
+					vector3.x = data[ j - 2 ] - data[ j + 2 ];
+					vector3.y = 2;
+					vector3.z = data[ j - width * 2 ] - data[ j + width * 2 ];
+					vector3.normalize();
+
+					shade = vector3.dot( sun );
+
+					imageData[ i ] = ( 96 + shade * 128 ) * ( 0.5 + data[ j ] * 0.007 );
+					imageData[ i + 1 ] = ( 32 + shade * 96 ) * ( 0.5 + data[ j ] * 0.007 );
+					imageData[ i + 2 ] = ( shade * 96 ) * ( 0.5 + data[ j ] * 0.007 );
+
+				}
+
+				context.putImageData( image, 0, 0 );
+
+				// Scaled 4x
+
+				const canvasScaled = document.createElement( 'canvas' );
+				canvasScaled.width = width * 4;
+				canvasScaled.height = height * 4;
+
+				context = canvasScaled.getContext( '2d' );
+				context.scale( 4, 4 );
+				context.drawImage( canvas, 0, 0 );
+
+				image = context.getImageData( 0, 0, canvasScaled.width, canvasScaled.height );
+				imageData = image.data;
+
+				for ( let i = 0, l = imageData.length; i < l; i += 4 ) {
+
+					const v = ~ ~ ( Math.random() * 5 );
+
+					imageData[ i ] += v;
+					imageData[ i + 1 ] += v;
+					imageData[ i + 2 ] += v;
+
+				}
+
+				context.putImageData( image, 0, 0 );
+
+				return canvasScaled;
+
+			}
+
+			//
+
+			function animate() {
+
+				requestAnimationFrame( animate );
+
+				render();
+				stats.update();
+
+			}
+
+
+			function render() {
+
+				controls.update( clock.getDelta() );
+				renderer.render( scene, camera );
+
+			}
+
+
             
-    }
-}
 
-function generateHeight( width, height ) {
-
-    let seed = Math.PI / 4;
-    window.Math.random = function () {
-
-        const x = Math.sin( seed ++ ) * 10000;
-        return x - Math.floor( x );
-
-    };
-
-    const size = width * height, data = new Uint8Array( size );
-    const perlin = new ImprovedNoise(), z = Math.random() * 100;
-
-    let quality = 1;
-
-    for ( let j = 0; j < 4; j ++ ) {
-
-        for ( let i = 0; i < size; i ++ ) {
-
-            const x = i % width, y = ~ ~ ( i / width );
-            data[ i ] += Math.abs( perlin.noise( x / quality, y / quality, z ) * quality * 1.75 );
-
-        }
-
-        quality *= 5;
-
-    }
-
-    return data;
-
-}
-
-
-// changeShape()
-let i=0
-
-moveCube()
-
-const animate = function () {
-    requestAnimationFrame( animate );
-    cube.geometry.attributes.position.needsUpdate = true;
-    // changeShape()
-    // cube.rotation.y+=0.001
-    renderer.render( scene, camera );
-
-};
-
-animate();
 
 </script>
 

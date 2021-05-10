@@ -1,7 +1,7 @@
 from django.contrib.gis import geos
 
 
-from generator.models import modelPoint,buildingData
+from generator.models import modelPoint,buildingData,obstructions
 from .Exceptions import NotEnoughPoints
 
 import shapely
@@ -15,6 +15,7 @@ from scipy import stats
 from scipy.spatial import ConvexHull as sciConvexHull
 import math
 from numba import jit , njit
+from sympy import symbols
 
 class Points():
     """
@@ -36,6 +37,7 @@ class flatSurface():
         self.modeHeight=0
         self.area=[]
         self.center = 0
+        self.center_wsg = 0
         self.hexa=hexa
         self.fov = None
     
@@ -45,6 +47,9 @@ class flatSurface():
             self.area = polygon.area
             self.center= list(polygon.centroid.coords)
             self.center = list(self.center[0])
+            transformer = Transformer.from_crs("epsg:3857" , "epsg:4326")
+            x,y = transformer.transform(self.center[0],self.center[1])
+            self.center_wsg =[x,y]
             heights=[]
             for p in self.insidePoints:
                 heights.append(p.height)
@@ -56,6 +61,68 @@ class flatSurface():
     def get_sides_mac(self):
         return [ i.mac_latlon for i in self.points ]
         
+
+def get_obstruction(fov,marker,flatsurface,latlonTopixal):
+    transformer = Transformer.from_crs("epsg:4326","epsg:3857")
+
+    markerHeight = marker.height
+
+    points = modelPoint.objects.filter(wsg48Point__intersects = fov.wsg48polygon)
+    for p in points:
+        if buildingData.objects.filter(geom__intersects = p.wsg48Point).exists():
+            p.height += buildingData.objects.get(geom__intersects = p.wsg48Point).height
+        
+    flatsurfaceHeight = flatsurface.avgHeight
+
+    flatsurfaceCenter = list(flatsurface.center)[::-1]
+    flatsurfaceCenterx,flatsurfaceCentery = latlonTopixal.LatLongToPixelXYOSM(flatsurfaceCenter[0],flatsurfaceCenter[1],15)
+    flatsurfaceCenter = modelPoint.objects.get(world_pixal_xy = json.dumps([flatsurfaceCenterx,flatsurfaceCentery]))
+    if buildingData.objects.filter(geom__intersects = flatsurfaceCenter.wsg48Point).exists():
+            flatsurfaceCenter.height += buildingData.objects.get(geom__intersects = flatsurfaceCenter.wsg48Point).height
+
+    # print(fov.wsg48polygon[0])
+    fovVertices = [list(p)[::-1] for p in list(fov.wsg48polygon[0])][:3]
+    # print(fovVertices)
+    fovRelativeVertices = []
+    otherVertices = []
+    for point in fovVertices:
+        pointx,pointy = latlonTopixal.LatLongToPixelXYOSM(point[0],point[1],15)
+        p = modelPoint.objects.get(world_pixal_xy = json.dumps([pointx,pointy]))
+        if buildingData.objects.filter(geom__intersects = p.wsg48Point).exists():
+            p.height += buildingData.objects.get(geom__intersects = p.wsg48Point).height
+        if p.wsg48Point != flatsurfaceCenter.wsg48Point:
+            p.height = markerHeight
+            otherVertices.append(p)
+        fovRelativeVertices.append(p)
+    
+
+    vector1 = [list(flatsurfaceCenter.macPoint)[::-1][0],list(flatsurfaceCenter.macPoint)[::-1][1],flatsurfaceCenter.height]
+    vector2 = [list(otherVertices[0].macPoint)[::-1][0],list(otherVertices[0].macPoint)[::-1][1],otherVertices[0].height]
+    vector3 = [list(otherVertices[1].macPoint)[::-1][0],list(otherVertices[1].macPoint)[::-1][1],otherVertices[1].height]
+    vector12 = [vector1[0]-vector2[0],vector1[1]-vector2[1],vector1[2]-vector2[2]]
+    vector13 = [vector1[0]-vector3[0],vector1[1]-vector3[1],vector1[2]-vector3[2]]
+    i = ((vector12[1]*vector13[2]) - (vector12[2]*vector13[1]))
+    j = ((vector12[2]*vector13[0]) - (vector12[0]*vector13[2]))
+    k = ((vector12[0]*vector13[1]) - (vector12[1]*vector13[0]))
+
+    x,y,z,a1,b1,c1,ni,nj,nk = symbols('x y z a1 b1 c1 ni nj nj')
+    # plane = ni*(x - a1) + nj*(y - b1) + nk*(z - c1)
+    # print(plane.subs(ni,i).subs(nj,j).subs(nk,k).subs(a1,vector3[0]).subs(b1,vector3[1]).subs(c1,vector3[2]))
+    # plane = ni*(x - a1) + nj*(y - b1) + nk*(z - c1)
+    
+    for p in points:
+        xy = list(p.macPoint)[::-1]
+        planez =  -(((ni*(x - a1) + nj*(y - b1))/nk)-c1)
+        planez =  planez.subs(ni,i).subs(nj,j).subs(nk,k).subs(a1,vector3[0]).subs(b1,vector3[1]).subs(c1,vector3[2]).subs(x,xy[0]).subs(y,xy[1])
+        planez = planez.evalf()
+        # print(planez)
+        if p.height >=  planez:
+            obstructions.objects.create(flatSurface = flatsurface , wsg48Point=p.wsg48Point , macPoint=p.macPoint , height = p.height)
+
+    print(planez,'expr')
+    
+    
+    # startVector = 
 
 
 
@@ -386,14 +453,6 @@ class FOV():
         polygon = shapely.geometry.Polygon(self.view_area)
         self.area = polygon.area
         self.get_fov_4326()
-
-    def get_obstruction(self,sufaceHeight,marker):
-        vertices = shapely.geometry.Polygon(tuple([tuple(li[::-1]) for li in self.get_fov_4326()]))
-        fov = geos.Polygon(tuple(vertices.exterior.coords))
-        fovInsidePoints = modelPoint.objects.filter(wsg48Point__intersects = fov)
-        
-        return fovInsidePoints
-
 
 
     def create_cube(self,points,checkNmber=None):

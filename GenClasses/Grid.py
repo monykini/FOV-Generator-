@@ -2,7 +2,7 @@ import math
 import json
 from shapely.geometry import Point, Polygon, LineString
 from pyproj import Transformer
-from .Shapes import Hexa , Points , userMarker , flatSurface , FOV
+from .Shapes import Hexa , Points , userMarker , flatSurface , FOV , get_obstruction
 from generator.models import modelHexas,modelUserMarker,modelPoint,modelFOV,modelFlatSurface,buildingData
 from django.contrib.gis import geos
 from django.core.exceptions import ObjectDoesNotExist
@@ -107,7 +107,7 @@ class hexaGrid():
 
                         hexa.beta_flatness()
 
-                self.assign_falt_surfaces()    
+                self.assign_falt_surfaces()
                 return temp
 
         def assign_falt_surfaces(self):
@@ -124,7 +124,7 @@ class hexaGrid():
                 self.userMarker.Height = markerPoint.height + markerBuilding
 
                 for hexa in self.hexas:
-                        i=0
+                        i=0 
                         for flatpoints in hexa.falt_sufrace_points:
                                 flat_Surface = flatSurface(flatpoints,hexa)
                                 flat_Surface.insidePoints = hexa.falt_sufrace_allPoints[i]
@@ -137,12 +137,14 @@ class hexaGrid():
                                                 flat_Surface.fov = fov
                                                 wsg48polygon = Polygon(tuple([tuple(li[::-1]) for li in flat_Surface.get_sides_4326()]))
                                                 macpolygon = Polygon(tuple([tuple(li[::-1]) for li in flat_Surface.get_sides_mac()]))
-                                                FS = modelFlatSurface(marker = marker ,wsg48polygon =geos.Polygon(tuple(wsg48polygon.exterior.coords)) ,macpolygon= geos.Polygon(tuple(macpolygon.exterior.coords)))
+
+                                                FS = modelFlatSurface(marker = marker ,wsg48polygon =geos.Polygon(tuple(wsg48polygon.exterior.coords)) ,macpolygon= geos.Polygon(tuple(macpolygon.exterior.coords)) , avgHeight = flat_Surface.modeHeight,area = flat_Surface.area,center = geos.Point(tuple(flat_Surface.center_wsg)[::-1]))
                                                 FS.save()
                                                 wsg48polygon = Polygon(tuple([tuple(li[::-1]) for li in fov.get_fov_4326()]))
                                                 macpolygon = Polygon(tuple([tuple(li[::-1]) for li in fov.view_area]))
                                                 F_O_V = modelFOV(flatSurface=FS,wsg48polygon=geos.Polygon(tuple(wsg48polygon.exterior.coords)),macpolygon=geos.Polygon(tuple(macpolygon.exterior.coords)),height=fov.height)
                                                 F_O_V.save()
+                                                get_obstruction(F_O_V,self.userMarker,FS,self.converter)
                                                 self.flat_surfaces.append(flat_Surface)
                                 i+=1
                 return self.flat_surfaces

@@ -20,6 +20,7 @@
 {% block content %}
 <section class="logged-section pt-5">
     <button class="btn btn-primary neonButton calculate" onclick="show('areaForm')" >Calculate Area</button>
+    <button class="btn btn-primary neonButton clearmap" onclick="clearLocationCalulation()" >Clear Map</button>
     <div id="map"></div>
     
     
@@ -120,7 +121,7 @@ function hide(data){
 
 
 
-var currentMarkers=[];
+var currentMarkers;
 mapboxgl.accessToken = 'pk.eyJ1IjoibW9ueWtpbmkxMTEiLCJhIjoiY2tmeWE2ZmZzMjMzczJwcGRreGt5ZHpzcSJ9.2fx-rNkpReTIWWzjGTJo_g';
     var map = new mapboxgl.Map({
         container: 'map',
@@ -134,20 +135,22 @@ mapboxgl.accessToken = 'pk.eyJ1IjoibW9ueWtpbmkxMTEiLCJhIjoiY2tmeWE2ZmZzMjMzczJwc
         antialias: true
     });
 
-map.on('click', function(e){
-    if (currentMarkers!==null) {
-    for (var i = currentMarkers.length - 1; i >= 0; i--) {
-        currentMarkers[i].remove();
-    }
-}
-var marker = new mapboxgl.Marker({ "color": "{{request.session.profile.Marker_Color}}" })
-.setLngLat(e.lngLat)
-.addTo(map);
-lnglat = e.lngLat
-console.log(lnglat)
-currentMarkers.push(marker);
 
-});
+function showMarker(e){
+    if (currentMarkers) {
+        currentMarkers.remove();
+    }
+    var marker = new mapboxgl.Marker({ "color": "{{request.session.profile.Marker_Color}}" })
+    .setLngLat(e.lngLat)
+    .addTo(map);
+    lnglat = e.lngLat
+    console.log(lnglat)
+    currentMarkers = marker
+}
+
+map.on('click', showMarker);
+
+
 function tile_request(){
 
     latlon = JSON.stringify([lnglat['lat'],lnglat['lng']])
@@ -168,7 +171,12 @@ function tile_request(){
             }
             caluclateMarker = new mapboxgl.Marker({ "color": "{{request.session.profile.Selected_Color}}" }).setLngLat([lnglat['lng'],lnglat['lat']]).addTo(map);
             $('.overlay-layers').show()
+            map.off('click', showMarker);
             $(".loader-wrapper").hide()
+            currentMarkers.remove();
+            $(".calculate").hide();
+            $(".clearmap").show();
+
         },
         error:function(data){
             alertify.error('We failed to get data please try again')
@@ -180,7 +188,8 @@ function tile_request(){
     map.addControl(
     new MapboxGeocoder({
         accessToken: mapboxgl.accessToken,
-        mapboxgl: mapboxgl
+        mapboxgl: mapboxgl,
+        marker:false,
         })
     );
 
@@ -334,7 +343,15 @@ function create_square(data){
     if (map.getSource("povSorce")) {
 
         map.removeSource("povSorce");
-    }    
+    }
+    if (map.getLayer("obsLayer")) {
+        
+        map.removeLayer("obsLayer");
+    }
+    if (map.getSource("obsSource")) {
+
+        map.removeSource("obsSource");
+    }      
 
     fovData = JSON.parse(e.features[0].properties.fov)
     console.log(fovData)
@@ -351,6 +368,26 @@ function create_square(data){
         'fill-opacity': 0.6
         },
         'filter': ['==', '$type', 'Polygon']
+    });
+
+    map.addSource('obsSource', {
+    'type': 'geojson',
+    'data':JSON.parse(e.features[0].properties.obs)
+    });
+    map.addLayer({
+        'id': 'obsLayer',
+        'type': 'circle',
+        'source': 'obsSource',
+        'paint': {
+        // make circles larger as the user zooms from z12 to z22
+        'circle-radius': {
+        'base': 1.75,
+        'stops': [
+            [12, 2],
+            [22, 2]
+            ]
+            },
+        }
     });
 
     $('#fovAreaSummary').text((fovData.properties.fovArea).toFixed(2)+ 'm2');
@@ -372,6 +409,54 @@ function create_square(data){
     
 
 }
+
+function clearLocationCalulation() {
+    if (map.getLayer("HexaLayer")) {
+        
+        map.removeLayer("HexaLayer");
+    }
+    if (map.getSource("HexaSource")) {
+
+        map.removeSource("HexaSource");
+    }
+
+    if (map.getLayer("flatSurfaceLayer")) {
+
+    map.removeLayer("flatSurfaceLayer");
+    }
+    if (map.getSource("flatSurfaceSource")) {
+
+    map.removeSource("flatSurfaceSource");
+    }
+
+    if (map.getLayer("povLayer")) {
+        
+        map.removeLayer("povLayer");
+    }
+    if (map.getSource("povSorce")) {
+
+        map.removeSource("povSorce");
+    }
+    if (map.getLayer("obsLayer")) {
+        
+        map.removeLayer("obsLayer");
+    }
+    if (map.getSource("obsSource")) {
+
+        map.removeSource("obsSource");
+    } 
+    caluclateMarker.remove();
+    hexalayercheckbox = document.getElementById("hexagonsLayer")
+    flatsurfacecheckbox = document.getElementById("flatSurfacesLayer")
+    flatsurfacecheckbox.checked = true;
+    hexalayercheckbox.checked = true;
+    map.on('click', showMarker);
+    $(".calculate").show();
+    $(".clearmap").hide();
+
+}
+
+
 // hotspot function
 
 
