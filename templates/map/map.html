@@ -63,6 +63,35 @@
             </div>
         </div>
     </div>
+    <div class="container overlay-filters">
+        <div class="row wrapper ">
+            <h5 class="mx-auto text-nowrap font-weight-bold mb-3"> Flat area Filters </h5>
+            <div class="col-lg-12 ">
+                <table class="" id='flatSurfaceSumary'>
+                    <tr class="mb-2">
+                        <td class="text-left font-weight-bold text-nowrap">greater than</td>
+                        <td class="text-right font-weight-bold text-nowrap">less than</td>
+                    </tr>
+                    <tr class="mb-2">
+                        <td class="text-left"><input type="number" class="form-control" name="" id="distanceFieldGTE" style="width: 80px;
+                            height: 25px;"> m</td>
+                        <td class="text-right" id="fovAreaSummary"><input class="form-control" type="number" name="" id="distanceFieldLTE" style="width: 80px;
+                            height: 25px;"> m</td>
+                    </tr>
+                    <tr class="mb-2">
+                        <td class="text-left font-weight-bold text-nowrap">greater than</td>
+                        <td class="text-right font-weight-bold text-nowrap">less than</td>
+                    </tr>
+                    <tr class="mb-2">
+                        <td class="text-left"><input type="number" name="" id="heightFieldGTE" class="form-control" style="width: 80px;
+                            height: 25px;" > m</td>
+                        <td class="text-right" id="fovAreaSummary"><input type="number" class="form-control" name="" id="heightFieldLTE" style="width: 80px;
+                            height: 25px;"> m</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
     <div class="container overlay-layers ">
         <div class="row wrapper d-flex ">
         <div class="col-auto d-flex align-items-center">
@@ -173,6 +202,9 @@ function tile_request(){
             $('.overlay-layers').show()
             map.off('click', showMarker);
             $(".loader-wrapper").hide()
+            $(".overlay-summary").show()
+            $(".overlay-layers").show()
+            $(".overlay-filters").show()
             currentMarkers.remove();
             $(".calculate").hide();
             $(".clearmap").show();
@@ -453,6 +485,9 @@ function clearLocationCalulation() {
     map.on('click', showMarker);
     $(".calculate").show();
     $(".clearmap").hide();
+    $(".overlay-summary").hide()
+    $(".overlay-layers").hide()
+    $(".overlay-filters").hide()
 
 }
 
@@ -570,6 +605,39 @@ function showlayer(clickedLayer){
         );
     }
 }
+
+
+document.getElementById("distanceFieldLTE").addEventListener("input", addFilter);
+document.getElementById("distanceFieldGTE").addEventListener("input", addFilter);
+document.getElementById("heightFieldLTE").addEventListener("input", addFilter);
+document.getElementById("heightFieldGTE").addEventListener("input", addFilter);
+
+function addFilter(){
+    element1=document.getElementById("distanceFieldLTE")
+    element2=document.getElementById("distanceFieldGTE")
+    element3=document.getElementById("heightFieldLTE")
+    element4=document.getElementById("heightFieldGTE")
+    value1 = element1.value
+    value2 = element2.value
+    value3 = element3.value
+    value4 = element4.value
+    filter = ["all",]
+    if( value1 > 100){
+        filter.push(['<=', ['get', 'distance'],  parseInt(value1)]);
+    }
+    if( value2 > 100){
+        filter.push(['>=', ['get', 'distance'], parseInt(value2)]);
+    }
+    if( value3 > 0){
+        filter.push(['<=', ['get', 'height'], parseInt(value3)]);
+    }
+    if( value4 > 0){
+        filter.push(['>=', ['get', 'height'], parseInt(value4)]);
+    }
+    map.setFilter('flatSurfaceLayer',filter)
+}
+
+
 </script>
 {% endblock %}
 

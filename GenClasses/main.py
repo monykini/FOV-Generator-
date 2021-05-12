@@ -59,7 +59,7 @@ class FOV_fucade():
             obs = json.dumps(obsGeojson)
             properties = json.dumps(FovGeojson)
             geojson = json.loads(FS.wsg48polygon.geojson)
-            geojson = {'type': 'Feature','geometry': geojson,"properties":{'fov':properties,'obs':obs}}
+            geojson = {'type': 'Feature','geometry': geojson,"properties":{'fov':properties,'obs':obs,'distance':FS.distance,'height':FS.avgHeight}}
             flatSurfaceGeojson["features"].append(geojson)
         
         hexagons = {"type": "FeatureCollection","features": []}

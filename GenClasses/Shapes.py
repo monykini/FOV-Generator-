@@ -11,11 +11,13 @@ from shapely.geometry import Point, Polygon, LineString
 import numpy as np
 from pyproj import Transformer
 from sklearn import decomposition
+from sklearn.cluster import MeanShift
 from scipy import stats
 from scipy.spatial import ConvexHull as sciConvexHull
 import math
 from numba import jit , njit
 from sympy import symbols
+import time
 
 class Points():
     """
@@ -63,9 +65,11 @@ class flatSurface():
         
 
 def get_obstruction(fov,marker,flatsurface,latlonTopixal):
+    t1 = time.perf_counter()
+
     transformer = Transformer.from_crs("epsg:4326","epsg:3857")
 
-    markerHeight = marker.height
+    markerHeight = marker.Height
 
     points = modelPoint.objects.filter(wsg48Point__intersects = fov.wsg48polygon)
     for p in points:
@@ -112,14 +116,21 @@ def get_obstruction(fov,marker,flatsurface,latlonTopixal):
     
     for p in points:
         xy = list(p.macPoint)[::-1]
-        planez =  -(((ni*(x - a1) + nj*(y - b1))/nk)-c1)
+        if fov.sign == 0:
+            planez =  -(((ni*(x - a1) + nj*(y - b1))/nk)-c1)
+        else:
+            planez = (((ni*(x - a1) + nj*(y - b1))/nk)-c1)
         planez =  planez.subs(ni,i).subs(nj,j).subs(nk,k).subs(a1,vector3[0]).subs(b1,vector3[1]).subs(c1,vector3[2]).subs(x,xy[0]).subs(y,xy[1])
         planez = planez.evalf()
         # print(planez)
-        if p.height >=  planez:
+        if p.height >  planez:
             obstructions.objects.create(flatSurface = flatsurface , wsg48Point=p.wsg48Point , macPoint=p.macPoint , height = p.height)
 
     print(planez,'expr')
+
+    t2 = time.perf_counter()
+    print(f"{t2-t1} Seconds")
+
     
     
     # startVector = 
@@ -421,6 +432,7 @@ class FOV():
         self.angle = 45
         self.height = 0
         self.obstrcution = 0
+        self.sign=0
     
 
     def create_fov(self , hexa_center , userPoint):
@@ -446,6 +458,7 @@ class FOV():
 
         if (raw_hight_vector[0] * raw_hight_vector[1]) > 0 :
             vertices = [hexa_center , [userPoint[0]+vector1[0] , userPoint[1]+vector1[1]],[userPoint[0]+vector2[0] , userPoint[1]+vector2[1]]]
+            self.sign=1
         else:
             vertices = [hexa_center , [userPoint[0]+vector1[0] , userPoint[1]+vector2[1]],[userPoint[0]+vector2[0] , userPoint[1]+vector1[1]]]
         

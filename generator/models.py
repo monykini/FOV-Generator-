@@ -64,6 +64,7 @@ class modelFOV(models.Model):
     macpolygon = models.PolygonField(null = False)
     angel = models.FloatField(default=45)
     height = models.FloatField()
+    sign=models.IntegerField(default=0)
 
 class modelHexas(models.Model):
     marker = models.ForeignKey(modelUserMarker,on_delete=models.CASCADE)
@@ -74,6 +75,7 @@ class modelHexas(models.Model):
 
 class obstructions(models.Model):
     flatSurface = models.ForeignKey(modelFlatSurface,on_delete=models.CASCADE)
-    wsg48Point = models.PointField()
-    macPoint = models.PointField()
-    height = models.FloatField()
+    wsg48Point = models.PointField(null = True)
+    macPoint = models.PointField(null = True)
+    wsg48Polygon = models.PolygonField(null = True)
+    height = models.FloatField(null = True)

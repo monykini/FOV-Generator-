@@ -40,6 +40,7 @@ z-index: 9999;
     min-height: 50vh;
     right: 1vw;
     width: 250px;
+    display: None;
 }
 .overlay-layers{
     position: fixed;
@@ -49,6 +50,16 @@ z-index: 9999;
     width: 30vw;
     min-width: 250px;
     z-index: 99;
+    display: None;
+    
+}
+.overlay-filters{
+    position: fixed;
+    top: 40rem;
+    min-height: 50vh;
+    right: 1vw;
+    width: 270px;
+    display: None;
     
 }
 
