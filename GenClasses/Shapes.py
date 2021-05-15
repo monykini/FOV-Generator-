@@ -273,15 +273,15 @@ class Hexa():
             y.append(data.world_pixal_xy[1])
             z.append(data.height)
 
-        min_total_x , min_total_y , min_total_z = min(x),min(y),int(max(z))
+        min_total_x , min_total_y , min_total_z = min(x),min(y),int(max(z))*1000
         
-        min_x,min_y,min_z,max_x,max_y,max_z=int(min(x)-min(x)),int(min(y)-min(y)),int(min(z)-min(z)),int(max(x)-min(x)),int(max(y)-min(y)),int(max(z)-min(z))
+        min_x,min_y,min_z,max_x,max_y,max_z=int(min(x)-min(x)),int(min(y)-min(y)),int(min(z)-min(z)),int(max(x)-min(x)),int(max(y)-min(y)),int((max(z)*1000)-(min(z)*1000))
         
         cube = np.full((max_z+1, max_x+1,max_y+1 ),-1)
         cube[...] = -1
 
         for data in points:
-            cube[int((data.height)-min(z))][int(data.world_pixal_xy[0]-min(x))][int(data.world_pixal_xy[1]-min(y))]=1
+            cube[int((data.height*1000)-(min(z)*1000))][int(data.world_pixal_xy[0]-min(x))][int(data.world_pixal_xy[1]-min(y))]=1
         
         return cube , min_total_x , min_total_y , min_total_z ,max_x ,max_y ,max_z
 
@@ -365,21 +365,24 @@ class Hexa():
         if([x,y] not in points_accessed and scanner[x][y] != -1):
             points_accessed.append([x,y])
             if(x-1 >= 0):
-                if  abs(scanner[x][y] - scanner[x-1][y]) <= 1:
+                if  abs(scanner[x][y] - scanner[x-1][y]) <= 500:
+                    print(abs(scanner[x][y] - scanner[x-1][y]))
                     checks+=1
                     self.dertmine_surfaces(scanner,points_accessed,x-1,y,flat)
             else:
                 checks+=1
             #check right point
             if(x+1 < len(scanner)):
-                if  abs(scanner[x][y] - scanner[x+1][y]) <= 1:
+                if  abs(scanner[x][y] - scanner[x+1][y]) <= 500:
+                    print(abs(scanner[x][y] - scanner[x+1][y]))
                     checks+=1
                     self.dertmine_surfaces(scanner,points_accessed,x+1,y,flat)
             else:
                 checks+=1 
             #check bottom point
             if( y+1 < len(scanner[x])):
-                if  abs(scanner[x][y] - scanner[x][y+1]) <= 1:
+                if  abs(scanner[x][y] - scanner[x][y+1]) <= 500:
+                    print(abs(scanner[x][y] - scanner[x][y+1]))
                     checks+=1
                     self.dertmine_surfaces(scanner,points_accessed,x,y+1,flat)
             else:
@@ -388,7 +391,8 @@ class Hexa():
             #check top point
 
             if( y-1 >= 0):
-                if  abs(scanner[x][y] - scanner[x][y-1]) <= 1:
+                if  abs(scanner[x][y] - scanner[x][y-1]) <= 200:
+                    print(abs(scanner[x][y] - scanner[x][y-1]))
                     checks+=1
                     self.dertmine_surfaces(scanner,points_accessed,x,y-1,flat)
             else:

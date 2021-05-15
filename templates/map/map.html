@@ -2,11 +2,13 @@
 {% load static %}
 
 {% block files %}
-<link href='https://api.mapbox.com/mapbox-gl-js/v2.0.0/mapbox-gl.css' rel='stylesheet' />
+<!-- <link href='https://api.mapbox.com/mapbox-gl-js/v2.0.0/mapbox-gl.css' rel='stylesheet' /> -->
+<link href="https://api.mapbox.com/mapbox-gl-js/v2.2.0/mapbox-gl.css" rel="stylesheet">
 <script src="//cdn.jsdelivr.net/npm/alertifyjs@1.13.1/build/alertify.min.js"></script>
 <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/alertifyjs@1.13.1/build/css/alertify.min.css"/>
 <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.5.1/mapbox-gl-geocoder.min.js"></script>
-<script src= "https://api.mapbox.com/mapbox-gl-js/v1.12.0/mapbox-gl.js" ></script>
+<!-- <script src= "https://api.mapbox.com/mapbox-gl-js/v1.12.0/mapbox-gl.js" ></script> -->
+<script src="https://api.mapbox.com/mapbox-gl-js/v2.2.0/mapbox-gl.js"></script>
 <script src="https://api.tiles.mapbox.com/mapbox.js/plugins/turf/v3.0.11/turf.min.js" ></script>
 <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.5.1/mapbox-gl-geocoder.css" type="text/css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js" integrity="sha512-qTXRIMyZIFb8iQcfjXWCO8+M5Tbc38Qi5WzdPOYZHIlZpzBHG3L3by84BBBOiRGiEb7KKtAOAs5qYdUiZiQNNQ==" crossorigin="anonymous"></script>
@@ -194,7 +196,8 @@ var currentMarkers;
 mapboxgl.accessToken = 'pk.eyJ1IjoibW9ueWtpbmkxMTEiLCJhIjoiY2tmeWE2ZmZzMjMzczJwcGRreGt5ZHpzcSJ9.2fx-rNkpReTIWWzjGTJo_g';
     var map = new mapboxgl.Map({
         container: 'map',
-        style:        'mapbox://styles/monykini111/ckfzugdmf1ftk1alpt0whio6d',
+        // style:        'mapbox://styles/monykini111/ckfzugdmf1ftk1alpt0whio6d',
+        style: 'mapbox://styles/cosmoboiy/ckopwyuaf7mu818pl8if2b100',
         // [73.0501, 33.7077],
         center: [-73.97049764067823,40.76466662545835],
         zoom: 12,
@@ -323,28 +326,31 @@ map.on('load', function () {
         labelLayerId
     );
 
-    
-    // map.addSource('mapbox-dem', {
-    // 'type': 'raster-dem',
-    // 'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
-    // 'tileSize': 512,
-    // 'maxzoom': 14,
-    // });
+    // "mapbox-terrain-dem-v1": {
+    // "type": "raster-dem",
+    // "url": "mapbox://mapbox.mapbox-terrain-dem-v1"
+    // }    
+    map.addSource('mapbox-dem', {
+    'type': 'raster-dem',
+    'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
+    'tileSize': 512,
+    'maxzoom': 14,
+    });
 
 
     // // add the DEM source as a terrain layer with exaggerated height
-    // map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1.5 });
+    map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1.2 });
     
-    // // add a sky layer that will show when the map is highly pitched
-    // map.addLayer({
-    // 'id': 'sky',
-    // 'type': 'sky',
-    // 'paint': {
-    // 'sky-type': 'atmosphere',
-    // 'sky-atmosphere-sun': [0.0, 0.0],
-    // 'sky-atmosphere-sun-intensity': 15
-    // }
-    // });
+    // add a sky layer that will show when the map is highly pitched
+    map.addLayer({
+    'id': 'sky',
+    'type': 'sky',
+    'paint': {
+    'sky-type': 'atmosphere',
+    'sky-atmosphere-sun': [0.0, 0.0],
+    'sky-atmosphere-sun-intensity': 15
+    }
+    });
 
 
     loadHostspotLayer();

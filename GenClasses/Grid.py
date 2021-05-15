@@ -134,7 +134,7 @@ class hexaGrid():
                                 if flat_Surface.area >= self.CoverageArea:
                                         fov  = FOV()
                                         fov.create_fov(flat_Surface.center  , self.userMarker.get_latlonMac())
-                                        if (fov.height >= 100 and fov.height <=4000) and (flat_Surface.modeHeight >= self.userMarker.Height) :
+                                        if (fov.height >= 100 and fov.height <=4000) and (flat_Surface.modeHeight + 2 >= self.userMarker.Height) :
                                                 # fov.get_obstruction(flat_Surface.insidePoints,flat_Surface.modeHeight,self.userMarker)
                                                 flat_Surface.fov = fov
                                                 wsg48polygon = Polygon(tuple([tuple(li[::-1]) for li in flat_Surface.get_sides_4326()]))
@@ -146,7 +146,7 @@ class hexaGrid():
                                                 macpolygon = Polygon(tuple([tuple(li[::-1]) for li in fov.view_area]))
                                                 F_O_V = modelFOV(flatSurface=FS,wsg48polygon=geos.Polygon(tuple(wsg48polygon.exterior.coords)),macpolygon=geos.Polygon(tuple(macpolygon.exterior.coords)),height=fov.height,sign=fov.sign)
                                                 F_O_V.save()
-                                                get_obstruction(F_O_V,self.userMarker,FS,self.converter,transformer_mac,transformer_4326)
+                                                # get_obstruction(F_O_V,self.userMarker,FS,self.converter,transformer_mac,transformer_4326)
                                                 self.flat_surfaces.append(flat_Surface)
                                 i+=1
                 return self.flat_surfaces

@@ -107,7 +107,7 @@ class tileGatherer():
 
         def get_raster_tiles(self,total_tiles_matrix):
                 filled_tiles_matrix = []
-
+                print(total_tiles_matrix)
                 for t in total_tiles_matrix:
                         temp=[]
                         for y in t:
