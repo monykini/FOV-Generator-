@@ -111,6 +111,8 @@ class hexaGrid():
                 return temp
 
         def assign_falt_surfaces(self):
+                transformer_4326 = Transformer.from_crs("epsg:3857", "epsg:4326")
+                transformer_mac = Transformer.from_crs("epsg:4326","epsg:3857")
                 marker = modelUserMarker.objects.get(id=self.userMarker.id)
                 markerx,markery = self.converter.LatLongToPixelXYOSM(self.userMarker.latlon[0],self.userMarker.latlon[1],15)
                 markerBuilding = 0
@@ -144,7 +146,7 @@ class hexaGrid():
                                                 macpolygon = Polygon(tuple([tuple(li[::-1]) for li in fov.view_area]))
                                                 F_O_V = modelFOV(flatSurface=FS,wsg48polygon=geos.Polygon(tuple(wsg48polygon.exterior.coords)),macpolygon=geos.Polygon(tuple(macpolygon.exterior.coords)),height=fov.height,sign=fov.sign)
                                                 F_O_V.save()
-                                                # get_obstruction(F_O_V,self.userMarker,FS,self.converter)
+                                                get_obstruction(F_O_V,self.userMarker,FS,self.converter,transformer_mac,transformer_4326)
                                                 self.flat_surfaces.append(flat_Surface)
                                 i+=1
                 return self.flat_surfaces

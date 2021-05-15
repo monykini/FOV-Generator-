@@ -54,6 +54,8 @@ class CreateHoptSpots(generics.CreateAPIView):
 class DeleteHotSpots(generics.DestroyAPIView):
     serializer_class = HotSpotSerializer
 
+    
+
     def destroy(self,request,id=None, *args, **kwargs):
         user = self.request.user
         queryset = Hotspots.objects.filter(User = user)

@@ -54,7 +54,7 @@ class FOV_fucade():
             obsGeojson={"type": "FeatureCollection","features": [],"properties":""}
             obstructions = models.obstructions.objects.filter(flatSurface = FS)
             for obs in obstructions:
-                obsGeojson["features"].append({'type': 'Feature',"properties":"",'geometry': json.loads(obs.wsg48Point.geojson)})
+                obsGeojson["features"].append({'type': 'Feature',"properties":"",'geometry': json.loads(obs.wsg48Polygon.geojson)})
 
             obs = json.dumps(obsGeojson)
             properties = json.dumps(FovGeojson)

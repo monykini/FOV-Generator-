@@ -64,10 +64,10 @@ class flatSurface():
         return [ i.mac_latlon for i in self.points ]
         
 
-def get_obstruction(fov,marker,flatsurface,latlonTopixal):
+def get_obstruction(fov,marker,flatsurface,latlonTopixal,transformer_mac,transformer_4326):
     t1 = time.perf_counter()
-
-    transformer = Transformer.from_crs("epsg:4326","epsg:3857")
+    x = []
+    y = []
 
     markerHeight = marker.Height
 
@@ -75,12 +75,19 @@ def get_obstruction(fov,marker,flatsurface,latlonTopixal):
     for p in points:
         if buildingData.objects.filter(geom__intersects = p.wsg48Point).exists():
             p.height += buildingData.objects.get(geom__intersects = p.wsg48Point).height
-        
+    points = points
+    for data in points:
+        x.append(data.macPoint[1])
+        y.append(data.macPoint[0])
+
     flatsurfaceHeight = flatsurface.avgHeight
 
     flatsurfaceCenter = list(flatsurface.center)[::-1]
     flatsurfaceCenterx,flatsurfaceCentery = latlonTopixal.LatLongToPixelXYOSM(flatsurfaceCenter[0],flatsurfaceCenter[1],15)
     flatsurfaceCenter = modelPoint.objects.get(world_pixal_xy = json.dumps([flatsurfaceCenterx,flatsurfaceCentery]))
+    x.append(flatsurfaceCenter.macPoint[1])
+    y.append(flatsurfaceCenter.macPoint[0])
+    points |= modelPoint.objects.filter(world_pixal_xy = json.dumps([flatsurfaceCenterx,flatsurfaceCentery]))
     if buildingData.objects.filter(geom__intersects = flatsurfaceCenter.wsg48Point).exists():
             flatsurfaceCenter.height += buildingData.objects.get(geom__intersects = flatsurfaceCenter.wsg48Point).height
 
@@ -96,37 +103,106 @@ def get_obstruction(fov,marker,flatsurface,latlonTopixal):
             p.height += buildingData.objects.get(geom__intersects = p.wsg48Point).height
         if p.wsg48Point != flatsurfaceCenter.wsg48Point:
             p.height = markerHeight
+            x.append(p.macPoint[1])
+            y.append(p.macPoint[0])
             otherVertices.append(p)
+            points |= modelPoint.objects.filter(world_pixal_xy = json.dumps([pointx,pointy]))
         fovRelativeVertices.append(p)
     
 
-    vector1 = [list(flatsurfaceCenter.macPoint)[::-1][0],list(flatsurfaceCenter.macPoint)[::-1][1],flatsurfaceCenter.height]
-    vector2 = [list(otherVertices[0].macPoint)[::-1][0],list(otherVertices[0].macPoint)[::-1][1],otherVertices[0].height]
-    vector3 = [list(otherVertices[1].macPoint)[::-1][0],list(otherVertices[1].macPoint)[::-1][1],otherVertices[1].height]
-    vector12 = [vector1[0]-vector2[0],vector1[1]-vector2[1],vector1[2]-vector2[2]]
-    vector13 = [vector1[0]-vector3[0],vector1[1]-vector3[1],vector1[2]-vector3[2]]
-    i = ((vector12[1]*vector13[2]) - (vector12[2]*vector13[1]))
-    j = ((vector12[2]*vector13[0]) - (vector12[0]*vector13[2]))
-    k = ((vector12[0]*vector13[1]) - (vector12[1]*vector13[0]))
 
-    x,y,z,a1,b1,c1,ni,nj,nk = symbols('x y z a1 b1 c1 ni nj nj')
-    # plane = ni*(x - a1) + nj*(y - b1) + nk*(z - c1)
-    # print(plane.subs(ni,i).subs(nj,j).subs(nk,k).subs(a1,vector3[0]).subs(b1,vector3[1]).subs(c1,vector3[2]))
-    # plane = ni*(x - a1) + nj*(y - b1) + nk*(z - c1)
+    min_x,max_x,min_y,max_y = min(x),max(x),min(y),max(y)
+
+    grid = hexaGridnoSave()
+    grid = grid.calculate_grid(max_x,min_x,max_y,min_y)
+
+    targetLine = geos.LineString( (flatsurfaceCenter.wsg48Point,(marker.latlon[1],marker.latlon[0])) )
+
+    latlon = marker.get_latlonMac()
+    xp,yp,zp =  latlon[0],latlon[1],markerHeight
+    xc,yc,zc =  flatsurfaceCenter.macPoint[1],flatsurfaceCenter.macPoint[0],flatsurfaceCenter.height + 2
+    targetgamma = math.degrees(math.atan(math.sqrt(((xp-xc)**2+(yp-yc)**2))/(zp-zc)))
+    if targetgamma < 0:
+        targetgamma = 360 + targetgamma
+    # targetalpha = math.atan(math.sqrt(((zp-zc)**2+(yp-yc)**2))/(xp-xc))
+    # targetbeta = math.atan(math.sqrt(((xp-xc)**2+(zp-zc)**2))/(yp-yc))
+
+    filter_grid=[]
+    for g in grid:
+        wsg48Polygon = geos.Polygon(tuple([tuple(i[::-1])  for i in list(g.get_sides_4326(transformer=transformer_4326).exterior.coords)]))
+        insidePoints = points.filter(wsg48Point__intersects = wsg48Polygon)
+        if len(insidePoints) >= 1:
+            if targetLine.intersects(wsg48Polygon):
+                heights = []
+                for p in insidePoints:
+                    heights.append(p.height)
+                modeHeight=stats.mode(heights)[0]
+                xc,yc,zc = g.center[0],g.center[1],modeHeight
+                obsgamma = math.degrees(math.atan(math.sqrt(((xp-xc)**2+(yp-yc)**2))/(zp-zc)))
+                if obsgamma < 0:
+                    obsgamma = 360 + obsgamma
+                print(obsgamma,targetgamma)
+                print("#_--------------------------")
+                if obsgamma > targetgamma:
+                    filter_grid.append(g)
+                    obstructions.objects.create(flatSurface = flatsurface , wsg48Polygon=wsg48Polygon)
+
+    grid = filter_grid
+
+    print(len(grid))
     
-    for p in points:
-        xy = list(p.macPoint)[::-1]
-        if fov.sign == 0:
-            planez =  -(((ni*(x - a1) + nj*(y - b1))/nk)-c1)
-        else:
-            planez = (((ni*(x - a1) + nj*(y - b1))/nk)-c1)
-        planez =  planez.subs(ni,i).subs(nj,j).subs(nk,k).subs(a1,vector3[0]).subs(b1,vector3[1]).subs(c1,vector3[2]).subs(x,xy[0]).subs(y,xy[1])
-        planez = planez.evalf()
-        # print(planez)
-        if p.height >  planez:
-            obstructions.objects.create(flatSurface = flatsurface , wsg48Point=p.wsg48Point , macPoint=p.macPoint , height = p.height)
 
-    print(planez,'expr')
+
+    # for p in points:
+    # targetLine = geos.LineString( (flatsurfaceCenter.wsg48Point,(marker.latlon[1],marker.latlon[0])) )
+    # intersectingHexas = []
+    # for g in grid:
+    #     if targetLine.intersects(geos.Polygon(tuple([tuple(i[::-1])  for i in list(g.get_sides_4326(transformer=transformer_4326).exterior.coords)]))):
+    #         intersectingHexas.append(g)
+
+    for g in grid:
+        for p in list(g.get_sides_4326(transformer=transformer_4326).exterior.coords):
+            print(f"{p[0]},{p[1]}")        
+    # print(len(intersectingHexas))        
+        
+
+
+    # startGrid = 
+
+    # direction vectors
+    # yaw = arctan( (x2-x1) / (z2 - z1))
+    # pitch = arctan( (z2-z1) / (y2 - y1))
+    # roll = arctan( (y2-y1) / (x2 - x1))
+
+    # than do cross product and dot product
+
+    # vector1 = [list(flatsurfaceCenter.macPoint)[::-1][0],list(flatsurfaceCenter.macPoint)[::-1][1],flatsurfaceCenter.height]
+    # vector2 = [list(otherVertices[0].macPoint)[::-1][0],list(otherVertices[0].macPoint)[::-1][1],otherVertices[0].height]
+    # vector3 = [list(otherVertices[1].macPoint)[::-1][0],list(otherVertices[1].macPoint)[::-1][1],otherVertices[1].height]
+    # vector12 = [vector1[0]-vector2[0],vector1[1]-vector2[1],vector1[2]-vector2[2]]
+    # vector13 = [vector1[0]-vector3[0],vector1[1]-vector3[1],vector1[2]-vector3[2]]
+    # i = ((vector12[1]*vector13[2]) - (vector12[2]*vector13[1]))
+    # j = ((vector12[2]*vector13[0]) - (vector12[0]*vector13[2]))
+    # k = ((vector12[0]*vector13[1]) - (vector12[1]*vector13[0]))
+
+    # x,y,z,a1,b1,c1,ni,nj,nk = symbols('x y z a1 b1 c1 ni nj nj')
+    # # plane = ni*(x - a1) + nj*(y - b1) + nk*(z - c1)
+    # # print(plane.subs(ni,i).subs(nj,j).subs(nk,k).subs(a1,vector3[0]).subs(b1,vector3[1]).subs(c1,vector3[2]))
+    # # plane = ni*(x - a1) + nj*(y - b1) + nk*(z - c1)
+    
+    # for p in points:
+    #     xy = list(p.macPoint)[::-1]
+    #     if fov.sign == 0:
+    #         planez =  -(((ni*(x - a1) + nj*(y - b1))/nk)-c1)
+    #     else:
+    #         planez = (((ni*(x - a1) + nj*(y - b1))/nk)-c1)
+    #     planez =  planez.subs(ni,i).subs(nj,j).subs(nk,k).subs(a1,vector3[0]).subs(b1,vector3[1]).subs(c1,vector3[2]).subs(x,xy[0]).subs(y,xy[1])
+    #     planez = planez.evalf()
+    #     # print(planez)
+    #     if p.height >  planez:
+    #         obstructions.objects.create(flatSurface = flatsurface , wsg48Point=p.wsg48Point , macPoint=p.macPoint , height = p.height)
+
+    # print(planez,'expr')
 
     t2 = time.perf_counter()
     print(f"{t2-t1} Seconds")
@@ -160,9 +236,12 @@ class Hexa():
         self.center = center
         self.triangles = [] #list of triangles
         self.sideLength = 28.868
+        if kwargs.get('sideLength',False):
+            self.sideLength = kwargs.get('sideLength')
         self.x = 0 
         self.y = 0
         self.cube=[]
+        self.side_4326 = [] #polygon
         self.id=None
         self.falt_sufrace=[] # may get deprecative
         self.falt_sufrace_points=[]
@@ -349,15 +428,21 @@ class Hexa():
                     self.sides = Polygon(c)
                 return self.sides
 
-    def get_sides_4326(self):
+    def get_sides_4326(self,*args,**kwargs):
+        if self.side_4326 != []:
+            return self.side_4326 
         if self.sides == []:
             self.create_hexagon()
-        transformer = Transformer.from_crs("epsg:3857" , "epsg:4326")
+        if kwargs.get('transformer',False):
+            transformer = kwargs.get('transformer')
+        else:
+            transformer = Transformer.from_crs("epsg:3857" , "epsg:4326")
         polygon_4326 = []
         for p in list(self.sides.exterior.coords):
             x,y = transformer.transform(p[0], p[1])
             polygon_4326.append([x,y])
-        return Polygon(polygon_4326)
+        self.side_4326 = Polygon(polygon_4326)
+        return self.side_4326 
 
         
 
@@ -499,3 +584,76 @@ class FOV():
 
   
 
+class hexaGridnoSave():
+        """
+        creates a hexagrid \n
+        hexaGrid(userMarker)
+        methods: \n
+        calculate_grid(self) :- creates a hexagrid
+        Mapper(self,tilesArray) :- takes tilesArray form tile_gather class and maps each point to respective hexa in grid
+        """
+        def __init__(self):
+                self.hexas = []
+                self.sideLength = 4
+                # self.flat_surfaces = []
+                # self.calculate_grid()
+
+        def calculate_grid(self,x_max,x_min,y_max,y_min):
+                """
+                returns an array of Points describing hexagons centers that are inside the given bounding_box \n
+                :return: The hexagon grid \n
+                """
+                grid = []
+
+                v_step = math.sqrt(3) * self.sideLength
+                h_step = 1.5 * self.sideLength
+
+
+                # bbox = list(self.userMarker.get_square().exterior.coords)
+
+                # x_min = bbox[3][0]
+                # x_max = bbox[1][0]
+                # y_min = bbox[1][1]
+                # y_max = bbox[3][1]
+
+
+                h_skip = math.ceil(x_min / h_step) - 1
+                h_start = h_skip * h_step
+
+                v_skip = math.ceil(y_min / v_step) - 1
+                v_start = v_skip * v_step
+
+                h_end = x_max + h_step
+                v_end = y_max + v_step
+
+                if v_start - (v_step / 2.0) < y_min:
+                        v_start_array = [v_start + (v_step / 2.0), v_start]
+                else:
+                        v_start_array = [v_start - (v_step / 2.0), v_start]
+
+                v_start_idx = int(abs(h_skip) % 2)
+
+
+                c_x = h_start
+                c_y = v_start_array[v_start_idx]
+                v_start_idx = (v_start_idx + 1) % 2
+                transformer = Transformer.from_crs("epsg:3857", "epsg:4326")
+                x = 0
+                while c_x < h_end:
+                        y = 0
+                        while c_y < v_end:
+                                c_x1, c_y1=transformer.transform(c_x, c_y)
+                                hexa = Hexa([c_x, c_y],x=x,y=y,sideLength=self.sideLength)
+                                # macpoint = geos.Point(c_y, c_x)
+                                # wsg48point = geos.Point(c_y1, c_x1)
+                                # wsg48Polygon = geos.Polygon(tuple([tuple(i[::-1])  for i in list(hexa.get_sides_4326().exterior.coords)]))
+                                # macpolygon = geos.Polygon(tuple([tuple(i[::-1])  for i in list(hexa.create_hexagon().exterior.coords)]))
+                                grid.append(hexa)
+                                c_y += v_step
+                                y+=1
+                        c_x += h_step
+                        c_y = v_start_array[v_start_idx]
+                        v_start_idx = (v_start_idx + 1) % 2
+                        x+=1
+                self.hexas = grid
+                return grid

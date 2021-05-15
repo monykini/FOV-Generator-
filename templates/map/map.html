@@ -21,6 +21,10 @@
 <section class="logged-section pt-5">
     <button class="btn btn-primary neonButton calculate" onclick="show('areaForm')" >Calculate Area</button>
     <button class="btn btn-primary neonButton clearmap" onclick="clearLocationCalulation()" >Clear Map</button>
+    
+    <button class="btn btn-primary neonButton hotspot-btn" onclick="createHotspot()" >Mark Hotspot</button>
+    <button class="btn btn-primary neonButton hotspot-save-btn" onclick="show('hotspotForm')" >save Hotspot</button>
+    
     <div id="map"></div>
     
     
@@ -34,6 +38,23 @@
                 <input type="text" name="lonlat" id="lonlat" hidden>
                 <button type="button" class="btn btn-primary neonButton mx-1" onclick="tile_request()">Submit</button>
                 <button type="button" class="btn btn-danger mx-1" onclick="hide('areaForm')">Close</button>
+            </form>
+        </div>
+    </div>
+    <div class="container overlay hotspotForm">
+        <div class="row my-5 wrapper mx-auto"  style="width: 30vw;">
+            <form id = 'hotspotForm' class="mx-auto" style="width: 100%;" enctype="multipart/form-data">
+                <div class="form-group">
+                  <label for="area">Name of Hotspot</label>
+                  <input type="text" class="form-control" id="hotspotName" name='Name'  placeholder="e.g waterfall">
+                </div>
+                <div class="form-group">
+                    <label for="area">Upload Image</label>
+                    <input type="file" name="SpotImage" id="hotspotImage" accept="image/x-png,image/gif,image/jpeg">
+                </div>
+                <input type="text" name="Location" id="hotspotlonlat" hidden>
+                <button type="button" class="btn btn-primary neonButton mx-auto" onclick="saveHotspot()">Submit</button>
+                <button type="button" class="btn btn-danger mx-auto" onclick="hide('areaForm')">Close</button>
             </form>
         </div>
     </div>
@@ -104,6 +125,21 @@
         </div>
         </div>
     </div>
+    <div class="container overlay-hotspot-info ">
+        <div class="row wrapper hotspot-info-wrapper">
+            <h4 class="text-center font-weight-bold w-100">Hotspot</h4>
+            <div class="hotspot-close">
+                <h5 onclick="closeHotspot();">X</h5>
+            </div>
+            <img src="" alt="" class="hotspot-img">
+            <h5 class="text-left font-weight-bold w-100 mt-2"> Name </h5>
+            <p class="text-left font-weight-bold w-100 hotspotName">xxxxxxxxx</p>
+            <h5 class="text-left font-weight-bold w-100"> Location </h5>
+            <p class="text-left font-weight-bold w-100 hotspotLocation">xxxxxxx</p>
+            <!-- <h5 class="text-left font-weight-bold w-100"> Added by </h5>
+            <p class="text-left font-weight-bold w-100 hotspotUser">xxxxxxxx</p> -->
+        </div>
+    </div>
     <div class="loader-wrapper">
         <div class="loader"></div>
     </div>
@@ -114,7 +150,6 @@
 
 {% block script %}
 <script>
-
 $.ajaxSetup({
     headers: { "X-CSRFToken": '{{csrf_token}}' ,'Authorization':"Token {{request.session.key}}"}
 });
@@ -134,8 +169,13 @@ function show(data){
             $(`.${data}`).show()
         }
     }
-    else{
-        $(`.${data}`).show()
+    if(data == "hotspotForm"){
+        if(lnglat.length < 1){
+            alertify.error("No point is selected")
+        }
+        else{
+            $(`.${data}`).show()
+        }
     }
 
 }
@@ -207,6 +247,7 @@ function tile_request(){
             $(".overlay-filters").show()
             currentMarkers.remove();
             $(".calculate").hide();
+            $(".hotspot-btn").hide()
             $(".clearmap").show();
 
         },
@@ -408,18 +449,25 @@ function create_square(data){
     });
     map.addLayer({
         'id': 'obsLayer',
-        'type': 'circle',
+        // 'type': 'circle',
         'source': 'obsSource',
+        'type': 'fill',
         'paint': {
+        'fill-color': '#800888',
+        'fill-opacity': 0.6
+        },
+        'filter': ['==', '$type', 'Polygon']
+        // 'paint': {
         // make circles larger as the user zooms from z12 to z22
-        'circle-radius': {
-        'base': 1.75,
-        'stops': [
-            [12, 2],
-            [22, 2]
-            ]
-            },
-        }
+        // 'circle-radius': {
+        // 'base': 1.75,
+        // 'stops': [
+        //     [12, 2],
+        //     [22, 2]
+        //     ]
+        //     },
+        // }
+
     });
 
     $('#fovAreaSummary').text((fovData.properties.fovArea).toFixed(2)+ 'm2');
@@ -546,41 +594,67 @@ function addhotspotLayer(data){
     });
 
     map.on('click', 'hotspotLayer', function(e){
-    new mapboxgl.Popup()
-    .setLngLat(e.lngLat)
-    .setHTML(`<img src=${e.features[0].properties.SpotImage} alt="" height=200 width=200 >`)
-    .addTo(map);
+    // new mapboxgl.Popup()
+    // .setLngLat(e.lngLat)
+    // .setHTML(`<img src=${e.features[0].properties.SpotImage} alt="" height=200 width=200 >`)
+    // .addTo(map);
+
+    // console.log(e)
+    name = e.features[0].properties.Name
+    location_cords = `${(e.lngLat.lng).toFixed(3)} ${(e.lngLat.lat).toFixed(3)}`
+    imgurl = e.features[0].properties.SpotImage
+    $('.hotspotName').html(name)
+    $('.hotspotLocation').html(location_cords)
+    $('.hotspot-img').attr("src", imgurl);
+    $('.overlay-hotspot-info').show()
+
     })
 }
 
+function closeHotspot(){
+    $('.overlay-hotspot-info').hide()
+}
 
 function create_geojson(lat,lon){
-   text = ` {
-    "type": "Point",
-    "coordinates": [
-        ${lon},
-        ${lat}
-    ]
-    }`
+   text = {"type": "Point","coordinates": [lon,lat]}
 
-    return text
+    return JSON.stringify(text)
 }
 
 
 function saveHotspot(){
+    $('#hotspotlonlat').val(create_geojson(lnglat.lat,lnglat.lng))
+    // var file_data = $('#hotspotImage').prop('files')[0];
+    // var form_data = new FormData();
+    // formData.set(name, value);
+    // form_data.append('file', file_data);
+    console.log($("#hotspotForm").serialize())
     $.ajax({
-        type:"post",
+        // type:"post",
+        method:"POST",
         url: "{% url 'createhotspots' %}",
-        data:{"Name":"bridge" ,"Location":create_geojson(lat,lon),"SpotImage":image},
+        // enctype: 'multipart/form-data',
+        // processData: false,
+        // contentType: false,
+        // cache: false,
+        data:$("#hotspotForm").serialize(),
         success:function(data){
             loadHostspotLayer()
         },
-        error:function(data){
-            console.error("Markers can not be creates")
-            console.error(data)
-        }
+        error:function (jqXhr, textStatus, errorThrown) {
+                console.log('ERROR')
+                console.log(jqXhr)
+            },
     })
 }
+
+function createHotspot(){
+   $(".hotspot-save-btn").show()
+   $(".hotspot-btn").hide()
+   $(".calculate").hide()
+   alertify.success("select a marker on map")
+}
+
 
 // layer checkbox ----------------------------------------------------------------
 
