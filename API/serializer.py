@@ -5,7 +5,10 @@ from django.contrib.gis import geos
 
 from rest_framework import serializers
 from rest_framework_gis.serializers import GeoFeatureModelSerializer
-
+from rest_framework.parsers import MultiPartParser
+from rest_framework.parsers import FormParser
+from rest_framework.parsers import FileUploadParser
+from rest_framework.parsers import JSONParser
 from users.models import Hotspots
 
 from datetime import datetime
@@ -19,6 +22,9 @@ import base64
 
 class HotSpotSerializer(GeoFeatureModelSerializer):
 
+    parser_classes = (FormParser,JSONParser,MultiPartParser,FileUploadParser,)
+    serializer_class = (FormParser,JSONParser,MultiPartParser,FileUploadParser,)
+
     class Meta:
         model = Hotspots
         geo_field = "Location"
@@ -27,12 +33,13 @@ class HotSpotSerializer(GeoFeatureModelSerializer):
 
     def validate_Location(self,value):
         print(value,'lmao')
+        # print(value,'lmao')
         if value == None:
             raise serializers.ValidationError("Location : field is required")
         return geos.Point(tuple(value))
 
     def create(self, validated_data):
-        print(validated_data)
+        print(validated_data,'lmao')
         Name = validated_data.get('Name',None)
         Location = validated_data.get('Location', None)
         SpotImage = validated_data.get('SpotImage', None)
@@ -41,7 +48,7 @@ class HotSpotSerializer(GeoFeatureModelSerializer):
         return order
 
     def update(self,instance, validated_data):
-        print(validated_data)
+        print(validated_data,'lmao')
         instance.Name = validated_data.get('Name',instance.Name)
         instance.Location = validated_data.get('Location', instance.Location)
         instance.SpotImage = validated_data.get('SpotImage', instance.SpotImage)

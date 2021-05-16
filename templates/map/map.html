@@ -45,7 +45,7 @@
     </div>
     <div class="container overlay hotspotForm">
         <div class="row my-5 wrapper mx-auto"  style="width: 30vw;">
-            <form id = 'hotspotForm' class="mx-auto" style="width: 100%;" enctype="multipart/form-data">
+            <form id = 'hotspotForm' class="mx-auto" style="width: 100%;" enctype="multipart/form-data"  method="POST">
                 <div class="form-group">
                   <label for="area">Name of Hotspot</label>
                   <input type="text" class="form-control" id="hotspotName" name='Name'  placeholder="e.g waterfall">
@@ -55,7 +55,7 @@
                     <input type="file" name="SpotImage" id="hotspotImage" accept="image/x-png,image/gif,image/jpeg">
                 </div>
                 <input type="text" name="Location" id="hotspotlonlat" hidden>
-                <button type="button" class="btn btn-primary neonButton mx-auto" onclick="saveHotspot()">Submit</button>
+                <button type="submit" class="btn btn-primary neonButton mx-auto">Submit</button>
                 <button type="button" class="btn btn-danger mx-auto" onclick="hide('areaForm')">Close</button>
             </form>
         </div>
@@ -628,31 +628,44 @@ function create_geojson(lat,lon){
 }
 
 
-function saveHotspot(){
-    $('#hotspotlonlat').val(create_geojson(lnglat.lat,lnglat.lng))
-    // var file_data = $('#hotspotImage').prop('files')[0];
-    // var form_data = new FormData();
-    // formData.set(name, value);
-    // form_data.append('file', file_data);
-    console.log($("#hotspotForm").serialize())
-    $.ajax({
-        // type:"post",
-        method:"POST",
-        url: "{% url 'createhotspots' %}",
-        // enctype: 'multipart/form-data',
-        // processData: false,
-        // contentType: false,
-        // cache: false,
-        data:$("#hotspotForm").serialize(),
-        success:function(data){
-            loadHostspotLayer()
-        },
-        error:function (jqXhr, textStatus, errorThrown) {
-                console.log('ERROR')
-                console.log(jqXhr)
+$('#hotspotForm').submit(function(e){
+        $('#hotspotlonlat').val(create_geojson(lnglat.lat,lnglat.lng))
+        e.preventDefault();
+        var formData = new FormData($(this)[0]);
+        $.ajax({
+            url: "{% url 'createhotspots' %}",
+            type: 'POST',
+            data: formData,
+            cache: false,
+            contentType: false,
+            processData: false,
+            success: function (response) {
+                console.log(response)
             },
-    })
-}
+        });
+    });
+
+// function saveHotspot(){
+//     $('#hotspotlonlat').val(create_geojson(lnglat.lat,lnglat.lng))
+//     var formData = new FormData(document.querySelector('#hotspotForm'));
+//     console.log(formData);
+//     $.ajax({
+//         method:"POST",
+//         url: "{% url 'createhotspots' %}",
+//         enctype: 'multipart/form-data',
+//         processData: false,
+//         contentType: false,
+//         cache: false,
+//         data:formData,
+//         success:function(data){
+//             loadHostspotLayer()
+//         },
+//         error:function (jqXhr, textStatus, errorThrown) {
+//                 console.log('ERROR')
+//                 console.log(jqXhr)
+//             },
+//     })
+// }
 
 function createHotspot(){
    $(".hotspot-save-btn").show()

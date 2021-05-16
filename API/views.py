@@ -15,6 +15,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.renderers import JSONRenderer
 from rest_framework.authtoken.models import Token
 from rest_framework.exceptions import APIException
+from rest_framework.parsers import JSONParser
 
 from .serializer import HotSpotSerializer
 from users.models import Hotspots
