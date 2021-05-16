@@ -4,6 +4,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from django.contrib.gis import geos
 from django.http import JsonResponse
+from rest_framework.authtoken.models import Token
 
 from .models import Profile, Hotspots
 from .forms import LoginForm,SignUpForm,UserProfileForm,AccessibilityForm
@@ -38,7 +39,7 @@ def registration_view(request):
             username = form.cleaned_data.get('username')
             raw_password = form.cleaned_data.get('password1')
             user = authenticate(username=username, password=raw_password)
-            ProfileData = Profile.objects.Create(User = user)
+            ProfileData = Profile.objects.create(User = user)
             ProfileData.save()
             login(request, user)
             return redirect('map')
@@ -62,7 +63,7 @@ def settings_view(request):
             instance = Profile.objects.get(User = request.user)
             instance.ProfileImage.save(filename,image,save=True)
             instance.save()
-
+    request.session['key'] = Token.objects.get(user= request.user).key
     ProfileForm = UserProfileForm(initial = User.objects.filter(email = request.user.email).values()[0],prefix='profile')
     ProfileData = Profile.objects.filter(User = request.user)[0]
     AccessForm = AccessibilityForm(initial = Profile.objects.filter(User = request.user).values()[0], prefix="accessibility")

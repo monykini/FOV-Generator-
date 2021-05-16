@@ -26,6 +26,7 @@
     
     <button class="btn btn-primary neonButton hotspot-btn" onclick="createHotspot()" >Mark Hotspot</button>
     <button class="btn btn-primary neonButton hotspot-save-btn" onclick="show('hotspotForm')" >save Hotspot</button>
+    <button class="btn btn-primary neonButton hotspot-save-btn hotspot-cross" onclick="displatDefaultButtons()" >X</button>
     
     <div id="map"></div>
     
@@ -38,8 +39,10 @@
                   <input type="number" class="form-control" id="area" name='area'  placeholder="Enter area m2" value="200">
                 </div>
                 <input type="text" name="lonlat" id="lonlat" hidden>
-                <button type="button" class="btn btn-primary neonButton mx-1" onclick="tile_request()">Submit</button>
-                <button type="button" class="btn btn-danger mx-1" onclick="hide('areaForm')">Close</button>
+                <div class="d-flex flex-wrap justify-content-center">
+                    <button type="button" class="btn btn-primary neonButton mx-1" onclick="tile_request()">Submit</button>
+                    <button type="button" class="btn btn-danger mx-1" onclick="hide('areaForm')">Close</button>
+                </div>
             </form>
         </div>
     </div>
@@ -55,8 +58,10 @@
                     <input type="file" name="SpotImage" id="hotspotImage" accept="image/x-png,image/gif,image/jpeg">
                 </div>
                 <input type="text" name="Location" id="hotspotlonlat" hidden>
-                <button type="submit" class="btn btn-primary neonButton mx-auto">Submit</button>
-                <button type="button" class="btn btn-danger mx-auto" onclick="hide('areaForm')">Close</button>
+                <div class="d-flex flex-wrap justify-content-center">
+                    <button type="submit" class="btn btn-primary neonButton mx-1">Submit</button>
+                    <button type="button" class="btn btn-danger mx-1" onclick="hide('hotspotForm')">Close</button>
+                </div>
             </form>
         </div>
     </div>
@@ -157,6 +162,13 @@ $.ajaxSetup({
 });
 
 
+function displatDefaultButtons(){
+    $(".calculate").show();
+    $(".hotspot-btn").show();
+    $(".hotspot-save-btn").hide();
+    $(".clearmap").hide();
+}
+
 alertify.set('notifier','position', 'top-center');
 var markers01=[];
 var lnglat=[];
@@ -196,8 +208,8 @@ var currentMarkers;
 mapboxgl.accessToken = 'pk.eyJ1IjoibW9ueWtpbmkxMTEiLCJhIjoiY2tmeWE2ZmZzMjMzczJwcGRreGt5ZHpzcSJ9.2fx-rNkpReTIWWzjGTJo_g';
     var map = new mapboxgl.Map({
         container: 'map',
-        // style:        'mapbox://styles/monykini111/ckfzugdmf1ftk1alpt0whio6d',
-        style: 'mapbox://styles/cosmoboiy/ckopwyuaf7mu818pl8if2b100',
+        style:        'mapbox://styles/monykini111/ckfzugdmf1ftk1alpt0whio6d',
+        // style: 'mapbox://styles/cosmoboiy/ckopwyuaf7mu818pl8if2b100',
         // [73.0501, 33.7077],
         center: [-73.97049764067823,40.76466662545835],
         zoom: 12,
@@ -354,6 +366,36 @@ map.on('load', function () {
 
 
     loadHostspotLayer();
+
+    {% if hotspotID %}
+        $.ajax({
+            url:'{% url "retrievehotspots" id=1%}'.replace('1',"{{hotspotID}}"),
+            method:"GET",
+            async:false,
+            success:function(data){
+                console.log(data)
+                map.flyTo({
+                center: data.geometry.coordinates,
+                zoom:15
+                });
+                name = data.properties.Name
+                location_cords = `${(data.geometry.coordinates[0]).toFixed(3)} ${(data.geometry.coordinates[1]).toFixed(3)}`
+                imgurl = data.properties.SpotImage
+                $('.hotspotName').html(name)
+                $('.hotspotLocation').html(location_cords)
+                $('.hotspot-img').attr("src", imgurl);
+                $('.overlay-hotspot-info').show()
+                window.history.pushState('map', 'FOV-eyes above sky', '/generate/');
+            },
+            error: function(data){
+                console.log(data)
+            }
+            
+        })
+
+    {% endif %}
+
+
     });
 
 
@@ -632,6 +674,7 @@ $('#hotspotForm').submit(function(e){
         $('#hotspotlonlat').val(create_geojson(lnglat.lat,lnglat.lng))
         e.preventDefault();
         var formData = new FormData($(this)[0]);
+        $(".loader-wrapper").show()
         $.ajax({
             url: "{% url 'createhotspots' %}",
             type: 'POST',
@@ -640,8 +683,16 @@ $('#hotspotForm').submit(function(e){
             contentType: false,
             processData: false,
             success: function (response) {
-                console.log(response)
+                loadHostspotLayer()
+                $(".loader-wrapper").hide()
+                hide('hotspotForm')
+                alertify.success("hotspot added")
+                currentMarkers.remove();
+                lnglat=''
             },
+            error:function(){
+                $(".loader-wrapper").hide()
+            }
         });
     });
 

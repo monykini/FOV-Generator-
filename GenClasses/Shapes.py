@@ -125,7 +125,12 @@ def get_obstruction(fov,marker,flatsurface,latlonTopixal,transformer_mac,transfo
     if targetgamma < 0:
         targetgamma = 360 + targetgamma
     # targetalpha = math.atan(math.sqrt(((zp-zc)**2+(yp-yc)**2))/(xp-xc))
-    # targetbeta = math.atan(math.sqrt(((xp-xc)**2+(zp-zc)**2))/(yp-yc))
+    try:
+        targetbeta = math.degrees(math.atan(math.sqrt(((xp-xc)**2+(zp-zc)**2))/(yp-yc)))
+    except :
+        targetbeta = 90
+    if targetbeta < 0:
+        targetbeta = 360 + targetbeta
 
     filter_grid=[]
     for g in grid:
@@ -138,7 +143,10 @@ def get_obstruction(fov,marker,flatsurface,latlonTopixal,transformer_mac,transfo
                     heights.append(p.height)
                 modeHeight=stats.mode(heights)[0]
                 xc,yc,zc = g.center[0],g.center[1],modeHeight
-                obsgamma = math.degrees(math.atan(math.sqrt(((xp-xc)**2+(yp-yc)**2))/(zp-zc)))
+                try:
+                    obsgamma = math.degrees(math.atan(math.sqrt(((xp-xc)**2+(zp-zc)**2))/(yp-yc)))
+                except:
+                    obsgamma = 90
                 if obsgamma < 0:
                     obsgamma = 360 + obsgamma
                 print(obsgamma,targetgamma)
@@ -273,15 +281,15 @@ class Hexa():
             y.append(data.world_pixal_xy[1])
             z.append(data.height)
 
-        min_total_x , min_total_y , min_total_z = min(x),min(y),int(max(z))*1000
+        min_total_x , min_total_y , min_total_z = min(x),min(y),int(max(z))
         
-        min_x,min_y,min_z,max_x,max_y,max_z=int(min(x)-min(x)),int(min(y)-min(y)),int(min(z)-min(z)),int(max(x)-min(x)),int(max(y)-min(y)),int((max(z)*1000)-(min(z)*1000))
+        min_x,min_y,min_z,max_x,max_y,max_z=int(min(x)-min(x)),int(min(y)-min(y)),int(min(z)-min(z)),int(max(x)-min(x)),int(max(y)-min(y)),int((max(z))-(min(z)))
         
         cube = np.full((max_z+1, max_x+1,max_y+1 ),-1)
         cube[...] = -1
 
         for data in points:
-            cube[int((data.height*1000)-(min(z)*1000))][int(data.world_pixal_xy[0]-min(x))][int(data.world_pixal_xy[1]-min(y))]=1
+            cube[int((data.height)-(min(z)))][int(data.world_pixal_xy[0]-min(x))][int(data.world_pixal_xy[1]-min(y))]=1
         
         return cube , min_total_x , min_total_y , min_total_z ,max_x ,max_y ,max_z
 
@@ -365,7 +373,7 @@ class Hexa():
         if([x,y] not in points_accessed and scanner[x][y] != -1):
             points_accessed.append([x,y])
             if(x-1 >= 0):
-                if  abs(scanner[x][y] - scanner[x-1][y]) <= 500:
+                if  abs(scanner[x][y] - scanner[x-1][y]) <= 1:
                     print(abs(scanner[x][y] - scanner[x-1][y]))
                     checks+=1
                     self.dertmine_surfaces(scanner,points_accessed,x-1,y,flat)
@@ -373,7 +381,7 @@ class Hexa():
                 checks+=1
             #check right point
             if(x+1 < len(scanner)):
-                if  abs(scanner[x][y] - scanner[x+1][y]) <= 500:
+                if  abs(scanner[x][y] - scanner[x+1][y]) <= 1:
                     print(abs(scanner[x][y] - scanner[x+1][y]))
                     checks+=1
                     self.dertmine_surfaces(scanner,points_accessed,x+1,y,flat)
@@ -381,7 +389,7 @@ class Hexa():
                 checks+=1 
             #check bottom point
             if( y+1 < len(scanner[x])):
-                if  abs(scanner[x][y] - scanner[x][y+1]) <= 500:
+                if  abs(scanner[x][y] - scanner[x][y+1]) <= 1:
                     print(abs(scanner[x][y] - scanner[x][y+1]))
                     checks+=1
                     self.dertmine_surfaces(scanner,points_accessed,x,y+1,flat)
@@ -391,7 +399,7 @@ class Hexa():
             #check top point
 
             if( y-1 >= 0):
-                if  abs(scanner[x][y] - scanner[x][y-1]) <= 200:
+                if  abs(scanner[x][y] - scanner[x][y-1]) <= 1:
                     print(abs(scanner[x][y] - scanner[x][y-1]))
                     checks+=1
                     self.dertmine_surfaces(scanner,points_accessed,x,y-1,flat)

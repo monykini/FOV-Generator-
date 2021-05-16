@@ -620,7 +620,7 @@ form .btn{
 				   <div class="row" style="height:100%">
 				      <div class="col-md-9">
 				         <div class="container">
-				      		<table data-table>
+				      		<table data-table id='hotspots-table'>
 							  <thead>
 							    <tr>
 							      <th>Name</th>
@@ -635,7 +635,6 @@ form .btn{
 							      <td>
 							        <a href="#" onclick="view('unique_id_1')" data-caption="View"><i class="ion-eye"></i></a>
 							        <a href="#" onclick="edit('unique_id_1')" data-caption="Edit"><i class="ion-edit"></i></a>
-							        <a href="#" onclick="duplicate('unique_id_1')" data-caption="Duplicate"><i class="ion-ios-copy"></i></a>
 							        <a href="#" data-delete data-caption="Delete"><i class="ion-close"></i></a>
 							      </td>
 							    </tr>
@@ -684,7 +683,9 @@ form .btn{
 {% block script %}
 
 <script type="text/javascript">
+
 	
+
   jQuery(".settings").css('display','none');
   jQuery("#profileSets").css('display','block');
 	
@@ -717,29 +718,7 @@ form .btn{
 	    });
 	});
 
-	var tables = document.getElementsByTagName('table');
-	for (i=0;i<tables.length;i++){
-	  var headers = tables[i].getElementsByTagName('th'),
-	      rows = tables[i].getElementsByTagName('tr'),
-	      header = [];
-	  if (tables[i].getAttribute('data-table') == undefined) {
-	    tables[i].setAttribute('data-table',i)
-	  }
-	  if (tables[i].getAttribute('data-table-theme') == undefined) {
-	    tables[i].setAttribute('data-table-theme','default')
-	  }
-	  for (h=0;h<headers.length;h++){
-	    header.push(headers[h].innerHTML);
-	  }
-	  for (r=0;r<rows.length;r++){
-	    var cells = rows[r].getElementsByTagName('td');
-	    for (c=0;c<cells.length;c++){
-	      if (cells[c].getAttribute('data-header') == undefined && header[c] !== undefined) {
-	        cells[c].setAttribute('data-header',header[c]);
-	      }
-	    }
-	  }
-	}
+
 
 	// Table Button Demo Functionality
 	scanButtons();
@@ -750,15 +729,7 @@ form .btn{
 	  }
 	}
 	function view(id){
-	  var link = document.createElement('a'),
-	      timestamp = Date.now();
-	  link.id = timestamp;
-	  link.href = 'http://example.com/' + id; // Link to view newsletter
-	  link.setAttribute('target','_blank');
-	  link.style.cssText = 'position:absolute;right:-10%;bottom:-10%;';
-	  document.body.appendChild(link);
-	  document.getElementById(timestamp).dispatchEvent(new MouseEvent('click'));
-	  document.getElementById(timestamp).parentElement.removeChild(document.getElementById(timestamp));
+	  location.href = '{% url "mapwithhotspot" hotspotID=1 %}'.replace("1",id)
 	}
 	function edit(id){
 	  var link = document.createElement('a'),
@@ -771,23 +742,55 @@ form .btn{
 	  document.getElementById(timestamp).dispatchEvent(new MouseEvent('click'));
 	  document.getElementById(timestamp).parentElement.removeChild(document.getElementById(timestamp));
 	}
-	function duplicate(id){
-	  var clone = document.getElementById(id).cloneNode(true),
-	      timestamp = Date.now();
-	  clone.id+='_'+timestamp;
-	  document.getElementById(id).parentNode.appendChild(clone);
-	  // Also clone the newsletter on the backend somewhere around here
-	  clone.querySelectorAll('[data-delete]')[0].addEventListener('click',remove);
-	  var orig = clone.style.background;
-	  clone.style.background = 'lightyellow';
-	  clone.style.transition = 'background 2s ease-in-out';
-	  setTimeout(function(){clone.style.background=orig},1000)
-	  setTimeout(function(){clone.style.transition=''},4000)
-	}
-	function remove(){
+	function remove(id){
 	  // Remove the newsletter from the backend somewhere around here
-	  this.parentNode.parentNode.parentNode.removeChild(this.parentNode.parentNode);
+    $(`#hotspot-${id}`).remove();
+    deleteHotspot(id)
 	}
+
+  $.ajaxSetup({
+    headers: { "X-CSRFToken": '{{csrf_token}}' ,'Authorization':"Token {{request.session.key}}"}
+  });
+
+
+  loadHotspots()
+
+  
+
+  function loadHotspots(){
+    $.ajax({
+      url:"{% url 'listuserhotspots' %}",
+      method:"GET",
+      success:createHotspotsTable,
+      error: function(data){
+        console.log(data)
+      }
+    })
+  }
+
+  function createHotspotsTable(data){
+    // hotspots-table
+    features = data.features
+    text = ""
+    for (i=0 ; i<features.length ; i++){
+      console.log(features[i])
+      id = features[i].id
+      properties = features[i].properties
+      latlon = features[i].geometry.coordinates
+      text += `<tr id="hotspot-${id}">
+                <td>${properties.Name}</td>
+                <td>${properties.Created}</td>
+                <td>
+                  <a href="#" onclick="view(${id})" data-caption="View"><i class="ion-eye"></i></a>
+                  <a href="#" onclick="edit(${id})" data-caption="Edit"><i class="ion-edit"></i></a>
+                  <a href="#" data-delete data-caption="Delete" onclick="remove(${id})"><i class="ion-close"></i></a>
+                </td>
+							</tr>
+                  `
+    }
+    $("#hotspots-table tbody").html(text)
+
+  }
 
   function clickSubmit(){
     document.getElementById("profileImageButton").click()
@@ -797,17 +800,24 @@ form .btn{
     document.getElementById("myImage").click()
   }
 
-  function deletehotspot(id){
+  
+
+  function deleteHotspot(id){
     $.ajax({
-      type:"post",
+      // type:"post",
       method:'DELETE',
-      url: "{% url 'deletehotspots' id=000001 %}".replace("000001",id),
-      success:function(data){
-          alertify.success("Hotspot deleted")
+      beforeSend: function(request) {
+        request.setRequestHeader("X-CSRFToken", '{{csrf_token}}');
+        request.setRequestHeader('Authorization',"Token {{request.session.key}}");
       },
-      error:function(data){
-          console.error("Hotspot could not be deleted")
-      }
+      url: "{% url 'deletehotspots' id=1 %}".replace("1",id),
+      success:function(data){
+          // alertify.success("Hotspot deleted")
+      },
+      error:function (jqXhr, textStatus, errorThrown) {
+                console.log('ERROR')
+                console.log(jqXhr)
+            }
     })
   }
 

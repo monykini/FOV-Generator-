@@ -111,7 +111,7 @@ class DeleteLocationDetails(APIView):
     allowed_methods =['Post','Delete']
 
     def post(self, request,format=None,id=None):
-        models.modelUserMarker.get(id = id).delete()
+        Hotspots.modelUserMarker.get(id = int(id)).delete()
         return Response({'delete':True})
 
 

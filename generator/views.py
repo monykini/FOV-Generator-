@@ -19,7 +19,7 @@ import time
 
 
 @login_required
-def genrator(request):
+def genrator(request,hotspotID=None):
     request.session['key'] = Token.objects.get(user = request.user).key
     request.session['profile'] = Profile.objects.filter(User = request.user).values()[0]
     print(request.session['key'])
@@ -32,7 +32,10 @@ def genrator(request):
         t2 = time.perf_counter()
         print(f"{t2-t1} , seconds end")
         return JsonResponse({'flatSurfaces':data2 , 'Hexas':hexas })
-    return render(request,'map/map.html')
+    if hotspotID == None:
+        return render(request,'map/map.html')
+    else:
+        return render(request,'map/map.html',{"hotspotID":hotspotID})
 
 
 def model(request):
