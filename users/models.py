@@ -5,6 +5,8 @@ from rest_framework.authtoken.models import Token
 from django.dispatch import receiver
 from django.utils import timezone
 
+import os
+
 SIZE_CHOICES = ((0,'8px') , (1,'9px') ,(2,'10px') ,(3,'11px') )
 COLOR_CHOICES = (('LM','Light Mode') , ('DM','Dark Mode') ,('CBA','Color Blind Assist',))
 FONT_CHOICES = ((0,'Sans') , (1,'Caliber') ,(2,'Romans') )
@@ -32,3 +34,5 @@ class Hotspots(models.Model):
 def create_token(sender, instance,created, **kwargs):
     if created:
         obj = Token.objects.get_or_create(user = instance.User)
+        path = f"userRasters/{instance.User.username}"
+        os.mkdir(path)

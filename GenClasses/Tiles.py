@@ -1,3 +1,16 @@
+import django
+from generator.models import modelPoint,modelUserMarker,buildingData
+from django.contrib.gis.gdal import GDALRaster
+from django.contrib.gis import geos
+
+from .Shapes import Points
+from FOV.settings import PROCESSED_TILES_DIRECTORY,PROCESSED_TILES_DIRECTORY_NAME
+
+
+# from shapely.geometry import Point, Polygon, LineString
+
+django.setup()
+
 from pyproj import Transformer
 import mercantile
 import math
@@ -5,21 +18,22 @@ import requests
 from PIL import Image
 import json
 from io import BytesIO
-import django
-django.setup()
-import numpy as np
-from .Shapes import Points
-from shapely.geometry import Point, Polygon, LineString
 import os
-from FOV.settings import PROCESSED_TILES_DIRECTORY,PROCESSED_TILES_DIRECTORY_NAME
-from generator.models import modelPoint,modelUserMarker
-from django.contrib.gis.gdal import GDALRaster
-from django.contrib.gis import geos
+from shapely import geometry
 from numba import jit , njit
 from multiprocessing import Pool
 import time
 import tifffile
 import copy
+from osgeo import gdal,ogr,osr
+from geopy.geocoders import Nominatim
+from geopy.extra.rate_limiter import RateLimiter
+import glob
+import numpy as np
+
+geolocator = Nominatim(user_agent="route")
+geopygeocode = RateLimiter(geolocator.reverse, min_delay_seconds=1,max_retries=5)
+
 
 class tileGatherer():
         """
@@ -29,11 +43,135 @@ class tileGatherer():
         conver_raster_tiles(self) := gets array of points from raster tiles\n
         get_tiles(self) := gets mercantile tiles numbers  \n
         """
-        def __init__(self,userMarker):
+        def __init__(self,userMarker,*args,**kwargs):
                 self.userMarker = userMarker
                 self.converter = latlon_to_pixal_Converter()
                 self.og_tiles = []
-    
+                self.markerID = kwargs.get("markerID",None)
+                self.markerObject = kwargs.get("markerObject",None)
+        
+
+        def store_raster_clip(self,square):
+                locations=[]
+                for p in square:
+                        location = (geopygeocode((p[0],p[1]),language='en').raw)['address']
+                        if {'city':location['city'],'country':location['country']} not in locations: 
+                                locations.append({'city':location['city'],'country':location['country']})
+                
+                valid_raster = []
+                
+                userPolygon = [ s[::-1] for s in square ]
+                userPolygon = geometry.Polygon(userPolygon)
+                
+                for l in locations:
+                        path = f"rasters/{l['country']}/{l['city']}"
+                        files = glob.glob(path+"/*.tif")
+                        print(files,'lol')
+                        for f in files:
+                                
+                                bounds = self.get_raster_bounds(filename = f)
+                                rasterPolygon = geometry.Polygon(bounds)
+                                
+                                if userPolygon.intersects(rasterPolygon):
+                                        valid_raster.append(f)
+                                        print(f)
+                                        # print(bounds)
+                raster = None
+                if len(valid_raster) > 1:
+                        pass
+                else:
+                      raster = valid_raster[0]
+                
+                userRasterPath = f"userRasters/{self.markerObject.user.username}/"
+                clipped_filename = f"cliped-{self.markerObject.id}.tif" 
+                
+                lats_y = [s[0] for s in square]
+                lons_x = [s[1] for s in square]
+                max_x,max_y,min_x,min_y = max(lons_x),max(lats_y),min(lons_x),min(lats_y) 
+                
+                ds=gdal.Open(raster)
+                ds = gdal.Translate(userRasterPath+clipped_filename, ds, projWin = [min_x-0.001, max_y+0.001, max_x+0.001,  min_y-0.001])
+                ds = None  
+                
+                print([min_x, max_y, max_x,  min_y])
+                
+                self.update_raster_with_buildings(userRasterPath+clipped_filename)
+
+                lol
+
+        def GetExtent(self,ds):
+                """ Return list of corner coordinates from a gdal Dataset """
+                xmin, xpixel, _, ymax, _, ypixel = ds.GetGeoTransform()
+                width, height = ds.RasterXSize, ds.RasterYSize
+                xmax = xmin + width * xpixel
+                ymin = ymax + height * ypixel
+
+                return (xmin, ymax), (xmax, ymax), (xmax, ymin), (xmin, ymin)
+
+        def ReprojectCoords(self,coords,src_srs,tgt_srs):
+
+                trans_coords=[]
+                transform = osr.CoordinateTransformation( src_srs, tgt_srs)
+                for x,y in coords:
+                        x,y,z = transform.TransformPoint(x,y)
+                        trans_coords.append([x,y])
+                return trans_coords
+
+
+        def get_raster_bounds(self,filename = None):
+                if filename == None:
+                        raster=r'data.tif'
+                else:
+                        raster = filename
+                # print(raster)
+                ds=gdal.Open(raster)
+                # print(ds)
+                ext=self.GetExtent(ds)
+                # print(ext)
+                # print(ds.RasterCount)
+                src_srs=osr.SpatialReference()
+                src_srs.ImportFromWkt(ds.GetProjection())
+                #tgt_srs=osr.SpatialReference()
+                #tgt_srs.ImportFromEPSG(4326)
+                # print(src_srs)
+                tgt_srs = src_srs.CloneGeogCS()
+                # print(tgt_srs)
+                geo_ext=self.ReprojectCoords(ext, src_srs, tgt_srs)
+                return geo_ext
+
+        def update_raster_with_buildings(self,fileName):
+                # Input DEM
+                # filename = raw_input("Input DEM FILE : ")
+                print(fileName)
+                dem = gdal.Open(fileName)
+                geotransform = dem.GetGeoTransform()
+                DEM_Value = np.array(dem.GetRasterBand(1).ReadAsArray(), dtype ="float") #Raster to Array
+                bounds = self.get_raster_bounds(filename = fileName)
+                bounds.append(bounds[0])
+                bounds = tuple([tuple(b) for b in bounds])
+                polygon = geos.Polygon(bounds)
+                buildings = buildingData.objects.filter(geom__intersects = polygon)
+                
+                if len(buildings) > 0:
+                        # Determine Basic Raster's Parameter
+                        Col = dem.RasterXSize
+                        Row = dem.RasterYSize
+                        Origin_X = geotransform[0]
+                        Origin_Y = geotransform[3]
+                        Cell_Size = geotransform[1]
+                        CRS = dem.GetProjection() # make sure that CRS is on geographic coordinate system because you use lat/long 
+                        points = []
+                        for col_x in range(len(DEM_Value)):
+                                for row_y in range(len(DEM_Value[col_x])):
+                                        x = (Cell_Size*col_x)+Origin_X 
+                                        y = -((row_y*Cell_Size)-Origin_Y)
+                                        point = geos.Point(x,y)
+                                        for b in buildings:
+                                                if point.intersects(b):
+                                                        DEM_Value[col_x][row_y] += b.height
+                                                        break
+                        dem.GetRasterBand(1).WriteArray(DEM_Value)
+                dem = None
 
         def get_tiles(self):
                 tiles = []
@@ -41,6 +179,9 @@ class tileGatherer():
                 for p in square_4326:
                         mercent = mercantile.tile(p[1],p[0],15)
                         tiles.append([mercent.x,mercent.y])
+                
+                self.store_raster_clip(square_4326)
+                lol
 
                 x_matrix =  [ p[1] for p in tiles ]
                 y_matrix = [p[0] for p in tiles]
@@ -62,6 +203,7 @@ class tileGatherer():
                 total_tiles_matrix = total_tiles_matrix[::-1]
                 self.og_tiles = copy.deepcopy(total_tiles_matrix)
                 print(self.og_tiles,'tiles')
+                # self.raster_to_tiff()
                 return total_tiles_matrix
 
         def check_files(self,total_tiles_matrix):
@@ -94,7 +236,7 @@ class tileGatherer():
         def raster_to_tiff(self):  
                 total_tiles_matrix = self.og_tiles
                 print(self.og_tiles)
-
+                transformer = Transformer.from_crs("epsg:4326", "epsg:3857")
                 for t in total_tiles_matrix:
                         temp=[]
                         for y in t:
@@ -103,6 +245,44 @@ class tileGatherer():
                                 image = Image.open(BytesIO(req.content))
                                 data = np.asarray(image)
                                 image = tifffile.imwrite(f'{y[0]}-{y[1]}.tif', data, photometric='rgb')
+                                src_filename =f'{y[0]}-{y[1]}.tif'
+                                dst_filename = 'destination_ref.tif'
+                                x_pixal_world = ((512*y[0]))
+                                y_pixal_world = ((512*y[1]))
+                                lat,lon =  self.converter.PixelXYToLatLongOSM(x_pixal_world,y_pixal_world,15)
+                                maerc_lat,maerc_lon = transformer.transform(lat, lon)
+                                # Opens source dataset
+                                src_ds = gdal.Open(src_filename)
+                                format = "GTiff"
+                                driver = gdal.GetDriverByName(format)
+
+                                # Open destination dataset
+                                dst_ds = driver.CreateCopy(dst_filename, src_ds, 0)
+
+                                # Specify raster location through geotransform array
+                                # (uperleftx, scalex, skewx, uperlefty, skewy, scaley)
+                                # Scale = size of one pixel in units of raster projection
+                                # this example below assumes 100x100
+                                gt = [maerc_lat, 2.245  , 0, maerc_lon , 0, -2.245 ]
+
+                                # Set location
+                                dst_ds.SetGeoTransform(gt)
+                        
+                                # Get raster projection
+                                epsg = 3857
+                                srs = osr.SpatialReference()
+                                srs.ImportFromEPSG(epsg)
+                                dest_wkt = srs.ExportToWkt()
+                                print(dest_wkt,'lol')
+                                # Set projection
+                                dst_ds.SetProjection("""PROJCS["WGS 84 / Pseudo-Mercator",GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4326"]],PROJECTION["Mercator_1SP"],PARAMETER["central_meridian",0],PARAMETER["scale_factor",1],PARAMETER["false_easting",0],PARAMETER["false_northing",0],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["X",EAST],AXIS["Y",NORTH],EXTENSION["PROJ4","+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs"],AUTHORITY["EPSG","3857"]]""")
+
+                                print(dst_ds.GetProjection())
+
+                                # Close files
+                                dst_ds = None
+                                src_ds = None
+                                lol
 
 
         def get_raster_tiles(self,total_tiles_matrix):

@@ -129,8 +129,8 @@ def get_obstruction(fov,marker,flatsurface,latlonTopixal,transformer_mac,transfo
         targetbeta = math.degrees(math.atan(math.sqrt(((xp-xc)**2+(zp-zc)**2))/(yp-yc)))
     except :
         targetbeta = 90
-    if targetbeta < 0:
-        targetbeta = 360 + targetbeta
+    # if targetbeta < 0:
+    #     targetbeta = 360 + targetbeta
 
     filter_grid=[]
     for g in grid:
@@ -147,11 +147,11 @@ def get_obstruction(fov,marker,flatsurface,latlonTopixal,transformer_mac,transfo
                     obsgamma = math.degrees(math.atan(math.sqrt(((xp-xc)**2+(zp-zc)**2))/(yp-yc)))
                 except:
                     obsgamma = 90
-                if obsgamma < 0:
-                    obsgamma = 360 + obsgamma
-                print(obsgamma,targetgamma)
-                print("#_--------------------------")
-                if obsgamma > targetgamma:
+                # if obsgamma < 0:
+                #     obsgamma = 360 + obsgamma
+                # print(obsgamma,targetbeta)
+                # print("#_--------------------------")
+                if obsgamma > targetbeta:
                     filter_grid.append(g)
                     obstructions.objects.create(flatSurface = flatsurface , wsg48Polygon=wsg48Polygon)
 

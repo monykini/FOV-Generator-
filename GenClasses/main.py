@@ -32,7 +32,7 @@ class FOV_fucade():
         Marker.id = marker.id
         Grid = hexaGrid(Marker)
         
-        Tiler = tileGatherer(np.asarray(Marker.get_square_4326().exterior.coords))
+        Tiler = tileGatherer(np.asarray(Marker.get_square_4326().exterior.coords),markerID = marker.id,markerObject = marker)
         Tiler.convert_raster_tiles()
         
         Grid.Mapper()
