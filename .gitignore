@@ -5,5 +5,9 @@ buildingsData
 buildingsData/
 /buildingsData/
 /buildingsData
+userRasters
+userRasters/
+/userRasters/
+/userRasters
 */migrations
 FOV/settings.py

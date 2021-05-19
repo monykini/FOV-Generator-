@@ -64,164 +64,6 @@ class flatSurface():
         return [ i.mac_latlon for i in self.points ]
         
 
-def get_obstruction(fov,marker,flatsurface,latlonTopixal,transformer_mac,transformer_4326):
-    t1 = time.perf_counter()
-    x = []
-    y = []
-
-    markerHeight = marker.Height
-
-    points = modelPoint.objects.filter(wsg48Point__intersects = fov.wsg48polygon)
-    for p in points:
-        if buildingData.objects.filter(geom__intersects = p.wsg48Point).exists():
-            p.height += buildingData.objects.get(geom__intersects = p.wsg48Point).height
-    points = points
-    for data in points:
-        x.append(data.macPoint[1])
-        y.append(data.macPoint[0])
-
-    flatsurfaceHeight = flatsurface.avgHeight
-
-    flatsurfaceCenter = list(flatsurface.center)[::-1]
-    flatsurfaceCenterx,flatsurfaceCentery = latlonTopixal.LatLongToPixelXYOSM(flatsurfaceCenter[0],flatsurfaceCenter[1],15)
-    flatsurfaceCenter = modelPoint.objects.get(world_pixal_xy = json.dumps([flatsurfaceCenterx,flatsurfaceCentery]))
-    x.append(flatsurfaceCenter.macPoint[1])
-    y.append(flatsurfaceCenter.macPoint[0])
-    points |= modelPoint.objects.filter(world_pixal_xy = json.dumps([flatsurfaceCenterx,flatsurfaceCentery]))
-    if buildingData.objects.filter(geom__intersects = flatsurfaceCenter.wsg48Point).exists():
-            flatsurfaceCenter.height += buildingData.objects.get(geom__intersects = flatsurfaceCenter.wsg48Point).height
-
-    # print(fov.wsg48polygon[0])
-    fovVertices = [list(p)[::-1] for p in list(fov.wsg48polygon[0])][:3]
-    # print(fovVertices)
-    fovRelativeVertices = []
-    otherVertices = []
-    for point in fovVertices:
-        pointx,pointy = latlonTopixal.LatLongToPixelXYOSM(point[0],point[1],15)
-        p = modelPoint.objects.get(world_pixal_xy = json.dumps([pointx,pointy]))
-        if buildingData.objects.filter(geom__intersects = p.wsg48Point).exists():
-            p.height += buildingData.objects.get(geom__intersects = p.wsg48Point).height
-        if p.wsg48Point != flatsurfaceCenter.wsg48Point:
-            p.height = markerHeight
-            x.append(p.macPoint[1])
-            y.append(p.macPoint[0])
-            otherVertices.append(p)
-            points |= modelPoint.objects.filter(world_pixal_xy = json.dumps([pointx,pointy]))
-        fovRelativeVertices.append(p)
-    
-
-
-    min_x,max_x,min_y,max_y = min(x),max(x),min(y),max(y)
-
-    grid = hexaGridnoSave()
-    grid = grid.calculate_grid(max_x,min_x,max_y,min_y)
-
-    targetLine = geos.LineString( (flatsurfaceCenter.wsg48Point,(marker.latlon[1],marker.latlon[0])) )
-
-    latlon = marker.get_latlonMac()
-    xp,yp,zp =  latlon[0],latlon[1],markerHeight
-    xc,yc,zc =  flatsurfaceCenter.macPoint[1],flatsurfaceCenter.macPoint[0],flatsurfaceCenter.height + 2
-    targetgamma = math.degrees(math.atan(math.sqrt(((xp-xc)**2+(yp-yc)**2))/(zp-zc)))
-    if targetgamma < 0:
-        targetgamma = 360 + targetgamma
-    # targetalpha = math.atan(math.sqrt(((zp-zc)**2+(yp-yc)**2))/(xp-xc))
-    try:
-        targetbeta = math.degrees(math.atan(math.sqrt(((xp-xc)**2+(zp-zc)**2))/(yp-yc)))
-    except :
-        targetbeta = 90
-    # if targetbeta < 0:
-    #     targetbeta = 360 + targetbeta
-
-    filter_grid=[]
-    for g in grid:
-        wsg48Polygon = geos.Polygon(tuple([tuple(i[::-1])  for i in list(g.get_sides_4326(transformer=transformer_4326).exterior.coords)]))
-        insidePoints = points.filter(wsg48Point__intersects = wsg48Polygon)
-        if len(insidePoints) >= 1:
-            if targetLine.intersects(wsg48Polygon):
-                heights = []
-                for p in insidePoints:
-                    heights.append(p.height)
-                modeHeight=stats.mode(heights)[0]
-                xc,yc,zc = g.center[0],g.center[1],modeHeight
-                try:
-                    obsgamma = math.degrees(math.atan(math.sqrt(((xp-xc)**2+(zp-zc)**2))/(yp-yc)))
-                except:
-                    obsgamma = 90
-                # if obsgamma < 0:
-                #     obsgamma = 360 + obsgamma
-                # print(obsgamma,targetbeta)
-                # print("#_--------------------------")
-                if obsgamma > targetbeta:
-                    filter_grid.append(g)
-                    obstructions.objects.create(flatSurface = flatsurface , wsg48Polygon=wsg48Polygon)
-
-    grid = filter_grid
-
-    print(len(grid))
-    
-
-
-    # for p in points:
-    # targetLine = geos.LineString( (flatsurfaceCenter.wsg48Point,(marker.latlon[1],marker.latlon[0])) )
-    # intersectingHexas = []
-    # for g in grid:
-    #     if targetLine.intersects(geos.Polygon(tuple([tuple(i[::-1])  for i in list(g.get_sides_4326(transformer=transformer_4326).exterior.coords)]))):
-    #         intersectingHexas.append(g)
-
-    for g in grid:
-        for p in list(g.get_sides_4326(transformer=transformer_4326).exterior.coords):
-            print(f"{p[0]},{p[1]}")        
-    # print(len(intersectingHexas))        
-        
-
-
-    # startGrid = 
-
-    # direction vectors
-    # yaw = arctan( (x2-x1) / (z2 - z1))
-    # pitch = arctan( (z2-z1) / (y2 - y1))
-    # roll = arctan( (y2-y1) / (x2 - x1))
-
-    # than do cross product and dot product
-
-    # vector1 = [list(flatsurfaceCenter.macPoint)[::-1][0],list(flatsurfaceCenter.macPoint)[::-1][1],flatsurfaceCenter.height]
-    # vector2 = [list(otherVertices[0].macPoint)[::-1][0],list(otherVertices[0].macPoint)[::-1][1],otherVertices[0].height]
-    # vector3 = [list(otherVertices[1].macPoint)[::-1][0],list(otherVertices[1].macPoint)[::-1][1],otherVertices[1].height]
-    # vector12 = [vector1[0]-vector2[0],vector1[1]-vector2[1],vector1[2]-vector2[2]]
-    # vector13 = [vector1[0]-vector3[0],vector1[1]-vector3[1],vector1[2]-vector3[2]]
-    # i = ((vector12[1]*vector13[2]) - (vector12[2]*vector13[1]))
-    # j = ((vector12[2]*vector13[0]) - (vector12[0]*vector13[2]))
-    # k = ((vector12[0]*vector13[1]) - (vector12[1]*vector13[0]))
-
-    # x,y,z,a1,b1,c1,ni,nj,nk = symbols('x y z a1 b1 c1 ni nj nj')
-    # # plane = ni*(x - a1) + nj*(y - b1) + nk*(z - c1)
-    # # print(plane.subs(ni,i).subs(nj,j).subs(nk,k).subs(a1,vector3[0]).subs(b1,vector3[1]).subs(c1,vector3[2]))
-    # # plane = ni*(x - a1) + nj*(y - b1) + nk*(z - c1)
-    
-    # for p in points:
-    #     xy = list(p.macPoint)[::-1]
-    #     if fov.sign == 0:
-    #         planez =  -(((ni*(x - a1) + nj*(y - b1))/nk)-c1)
-    #     else:
-    #         planez = (((ni*(x - a1) + nj*(y - b1))/nk)-c1)
-    #     planez =  planez.subs(ni,i).subs(nj,j).subs(nk,k).subs(a1,vector3[0]).subs(b1,vector3[1]).subs(c1,vector3[2]).subs(x,xy[0]).subs(y,xy[1])
-    #     planez = planez.evalf()
-    #     # print(planez)
-    #     if p.height >  planez:
-    #         obstructions.objects.create(flatSurface = flatsurface , wsg48Point=p.wsg48Point , macPoint=p.macPoint , height = p.height)
-
-    # print(planez,'expr')
-
-    t2 = time.perf_counter()
-    print(f"{t2-t1} Seconds")
-
-    
-    
-    # startVector = 
-
-
-
-
 class Hexa():
     """
     Hexa(center)
@@ -374,7 +216,6 @@ class Hexa():
             points_accessed.append([x,y])
             if(x-1 >= 0):
                 if  abs(scanner[x][y] - scanner[x-1][y]) <= 1:
-                    print(abs(scanner[x][y] - scanner[x-1][y]))
                     checks+=1
                     self.dertmine_surfaces(scanner,points_accessed,x-1,y,flat)
             else:
@@ -382,7 +223,6 @@ class Hexa():
             #check right point
             if(x+1 < len(scanner)):
                 if  abs(scanner[x][y] - scanner[x+1][y]) <= 1:
-                    print(abs(scanner[x][y] - scanner[x+1][y]))
                     checks+=1
                     self.dertmine_surfaces(scanner,points_accessed,x+1,y,flat)
             else:
@@ -390,7 +230,6 @@ class Hexa():
             #check bottom point
             if( y+1 < len(scanner[x])):
                 if  abs(scanner[x][y] - scanner[x][y+1]) <= 1:
-                    print(abs(scanner[x][y] - scanner[x][y+1]))
                     checks+=1
                     self.dertmine_surfaces(scanner,points_accessed,x,y+1,flat)
             else:
@@ -400,7 +239,6 @@ class Hexa():
 
             if( y-1 >= 0):
                 if  abs(scanner[x][y] - scanner[x][y-1]) <= 1:
-                    print(abs(scanner[x][y] - scanner[x][y-1]))
                     checks+=1
                     self.dertmine_surfaces(scanner,points_accessed,x,y-1,flat)
             else:

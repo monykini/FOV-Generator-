@@ -2,13 +2,17 @@ import math
 import json
 from shapely.geometry import Point, Polygon, LineString
 from pyproj import Transformer
-from .Shapes import Hexa , Points , userMarker , flatSurface , FOV , get_obstruction
-from generator.models import modelHexas,modelUserMarker,modelPoint,modelFOV,modelFlatSurface,buildingData
+from .Shapes import Hexa , Points , userMarker , flatSurface , FOV 
+from generator.models import modelHexas,modelUserMarker,modelPoint,modelFOV,modelFlatSurface,buildingData,obstructions
 from django.contrib.gis import geos
 from django.core.exceptions import ObjectDoesNotExist
 from .Exceptions import WaterTile ,NoDataAvailable
 from .Tiles import latlon_to_pixal_Converter
+from subprocess import Popen, PIPE
 from osgeo import gdal,ogr,osr
+import rasterio
+import rasterio.features
+import os
 
 class hexaGrid():
         """
@@ -150,4 +154,38 @@ class hexaGrid():
                                                 # get_obstruction(F_O_V,self.userMarker,FS,self.converter,transformer_mac,transformer_4326)
                                                 self.flat_surfaces.append(flat_Surface)
                                 i+=1
+                self.get_obstructions()
                 return self.flat_surfaces
+        
+
+        def get_obstructions(self):
+                marker = modelUserMarker.objects.get(id=self.userMarker.id)
+                path = f"userRasters/{marker.user.username}/"
+                # ds = gdal.Open(inputfile)
+                # print(ds)
+                # print(ds.GetRasterBand(1).ReadAsArray())
+                # ds=None
+                for fs in modelFlatSurface.objects.filter(marker = marker):
+                        inputfile = path + f'cliped-{marker.id}_updated.tif'
+                        outputfile = path+ f'cliped-{marker.id}_viewshed_{fs.id}.tif'
+                        workingDir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                        
+                        print('-ox',f'{fs.center[0]}','-oy',f'{fs.center[1]}')
+                        process = Popen(['gdal_viewshed','-cc','0','-b','1','-md','0','-ox',f'{fs.center[0]}','-oy',f'{fs.center[1]}',inputfile,outputfile], stdout=PIPE, stderr=PIPE,cwd=workingDir)
+                        stdout, stderr = process.communicate()
+                        print(stdout, stderr)
+                        with rasterio.open(outputfile) as src:
+                                crs = src.crs
+                                src_band = src.read(1)
+                                # Keep track of unique pixel values in the input band
+                                unique_values = [255]
+                                # Polygonize with Rasterio. `shapes()` returns an iterable
+                                # of (geom, value) as tuples
+                                shapes = list(rasterio.features.shapes(src_band, transform=src.transform))
+                        # print(shapes)
+                        # lol
+                        for s in shapes:
+                                if s[1] >= 255:
+                                        poly = geos.Polygon(tuple(s[0]['coordinates'][0]))
+                                        obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = poly )
+                        

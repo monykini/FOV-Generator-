@@ -1,4 +1,7 @@
 import django
+
+django.setup()
+
 from generator.models import modelPoint,modelUserMarker,buildingData
 from django.contrib.gis.gdal import GDALRaster
 from django.contrib.gis import geos
@@ -9,7 +12,6 @@ from FOV.settings import PROCESSED_TILES_DIRECTORY,PROCESSED_TILES_DIRECTORY_NAM
 
 # from shapely.geometry import Point, Polygon, LineString
 
-django.setup()
 
 from pyproj import Transformer
 import mercantile
@@ -30,6 +32,7 @@ from geopy.geocoders import Nominatim
 from geopy.extra.rate_limiter import RateLimiter
 import glob
 import numpy as np
+
 
 geolocator = Nominatim(user_agent="route")
 geopygeocode = RateLimiter(geolocator.reverse, min_delay_seconds=1,max_retries=5)
@@ -55,18 +58,36 @@ class tileGatherer():
                 locations=[]
                 for p in square:
                         location = (geopygeocode((p[0],p[1]),language='en').raw)['address']
-                        if {'city':location['city'],'country':location['country']} not in locations: 
-                                locations.append({'city':location['city'],'country':location['country']})
-                
+                        print(location)
+                        if location.get('city',None) != None:
+                                if {'city':location['city'],'country':location['country']} not in locations: 
+                                        locations.append({'city':location['city'],'country':location['country']})
+                        if location.get('region',None) != None:
+                                if {'city':location['region'].split(' ')[0],'country':location['country']} not in locations: 
+                                        locations.append({'city':location['region'].split(" ")[0],'country':location['country']})
+                print(locations)
                 valid_raster = []
-                
-                userPolygon = [ s[::-1] for s in square ]
+                lats_y = [s[0] for s in square]
+                lons_x = [s[1] for s in square]
+                max_x,max_y,min_x,min_y = max(lons_x)+0.001,max(lats_y)+0.001,min(lons_x)-0.001,min(lats_y)-0.001
+                temp_square = []
+                for s in square:
+                        if s[0] == max_x:
+                                s[0] = max_x + 0.01
+                        if s[0] == min_x:
+                                s[0] = min_x - 0.01
+                        if s[1] == max_y:
+                                s[1] = max_y + 0.01
+                        if s[1] == min_y:
+                                s[1] = min_y - 0.01
+                        temp_square.append(s)
+
+                userPolygon = [ s[::-1] for s in temp_square ]
                 userPolygon = geometry.Polygon(userPolygon)
                 
                 for l in locations:
                         path = f"rasters/{l['country']}/{l['city']}"
                         files = glob.glob(path+"/*.tif")
-                        print(files,'lol')
                         for f in files:
                                 
                                 bounds = self.get_raster_bounds(filename = f)
@@ -74,15 +95,19 @@ class tileGatherer():
                                 
                                 if userPolygon.intersects(rasterPolygon):
                                         valid_raster.append(f)
-                                        print(f)
                                         # print(bounds)
                 raster = None
+                userRasterPath = f"userRasters/{self.markerObject.user.username}/"
                 if len(valid_raster) > 1:
-                        pass
+                        files_to_mosaic = valid_raster # However many you want.
+                        g = gdal.Warp(userRasterPath+"combined.tif", files_to_mosaic, format="GTiff",
+                                options=["COMPRESS=LZW", "TILED=YES"]) # if you want
+                        g = None
+                        raster = userRasterPath+"combined.tif"
                 else:
                       raster = valid_raster[0]
                 
-                userRasterPath = f"userRasters/{self.markerObject.user.username}/"
+                
                 clipped_filename = f"cliped-{self.markerObject.id}.tif" 
                 
                 lats_y = [s[0] for s in square]
@@ -95,9 +120,8 @@ class tileGatherer():
                 
                 print([min_x, max_y, max_x,  min_y])
                 
-                self.update_raster_with_buildings(userRasterPath+clipped_filename)
+                fileName = self.update_raster(userRasterPath+clipped_filename)
 
-                lol
 
         def GetExtent(self,ds):
                 """ Return list of corner coordinates from a gdal Dataset """
@@ -142,10 +166,11 @@ class tileGatherer():
         def update_raster_with_buildings(self,fileName):
                 # Input DEM
                 # filename = raw_input("Input DEM FILE : ")
-                print(fileName)
-                dem = gdal.Open(fileName)
+
+                dem = gdal.Open(fileName,gdal.GA_ReadOnly)
                 geotransform = dem.GetGeoTransform()
                 DEM_Value = np.array(dem.GetRasterBand(1).ReadAsArray(), dtype ="float") #Raster to Array
+                print(DEM_Value)
                 bounds = self.get_raster_bounds(filename = fileName)
                 bounds.append(bounds[0])
                 bounds = tuple([tuple(b) for b in bounds])
@@ -159,6 +184,7 @@ class tileGatherer():
                         Origin_X = geotransform[0]
                         Origin_Y = geotransform[3]
                         Cell_Size = geotransform[1]
+                        print(Cell_Size,"cell")
                         CRS = dem.GetProjection() # make sure that CRS is on geographic coordinate system because you use lat/long 
                         points = []
                         for col_x in range(len(DEM_Value)):
@@ -167,11 +193,79 @@ class tileGatherer():
                                         y = -((row_y*Cell_Size)-Origin_Y)
                                         point = geos.Point(x,y)
                                         for b in buildings:
-                                                if point.intersects(b):
+                                                if point.intersects(b.geom):
                                                         DEM_Value[col_x][row_y] += b.height
                                                         break
-                        dem.GetRasterBand(1).WriteArray(DEM_Value)
-                dem = None
+                return DEM_Value
+
+        def GetGeoInfo(self,FileName):
+                SourceDS = gdal.Open(FileName, gdal.GA_ReadOnly)
+                NDV = SourceDS.GetRasterBand(1).GetNoDataValue()
+                xsize = SourceDS.RasterXSize
+                ysize = SourceDS.RasterYSize
+
+                print(xsize,ysize)
+                GeoT = SourceDS.GetGeoTransform()
+                Projection = osr.SpatialReference()
+                Projection.ImportFromWkt(SourceDS.GetProjectionRef())
+                DataType = SourceDS.GetRasterBand(1).DataType
+                DataType = gdal.GetDataTypeName(DataType)
+                return NDV, xsize, ysize, GeoT, Projection, DataType
+
+        # Function to write a new file.
+        def CreateGeoTiff(self,Name, Array, driver, NDV,xsize, ysize, GeoT, Projection, DataType):
+                if DataType == 'Float32':
+                        DataType = gdal.GDT_Float32
+                if DataType == "Int16":
+                        DataType = gdal.GDT_Int16
+                NewFileName = Name+'.tif'
+                # Set nans to the original No Data Value
+                Array[np.isnan(Array)] = NDV
+                # Set up the dataset
+                DataSet = driver.Create( NewFileName, xsize, ysize, 1, DataType )
+                        # the '1' is for band 1.
+                DataSet.SetGeoTransform(GeoT)
+                DataSet.SetProjection( Projection.ExportToWkt() )
+                # Write the array
+                DataSet.GetRasterBand(1).WriteArray( Array )
+                DataSet.GetRasterBand(1).SetNoDataValue(NDV)
+
+                return NewFileName
+
+
+        def update_raster(self,FileName):        
+                # Open the original file
+                                                
+                DataSet = gdal.Open(FileName, gdal.GA_ReadOnly)
+                # Get the first (and only) band.
+                Band = DataSet.GetRasterBand(1)
+                # Open as an array.
+                # Array = Band.ReadAsArray()
+                # Get the No Data Value
+                NDV = Band.GetNoDataValue()
+                # Convert No Data Points to nans
+                # Array[Array == NDV] = np.nan
+
+                # Now I do some processing on Array, it's pretty complex 
+                # but for this example I'll just add 20 to each pixel.
+                NewArray = self.update_raster_with_buildings(FileName)  # If only it were that easy
+
+                # Now I'm ready to save the new file, in the meantime I have 
+                # closed the original, so I reopen it to get the projection
+                # information...
+                NDV, xsize, ysize, GeoT, Projection, DataType = self.GetGeoInfo(FileName)
+
+                # Set up the GTiff driver
+                driver = gdal.GetDriverByName('GTiff')
+
+                # Now turn the array into a GTiff.
+                clipped_filename = f"cliped-{self.markerObject.id}.tif" 
+                FileName = FileName.replace(clipped_filename,'')
+                NewFileName = self.CreateGeoTiff(FileName+ f'cliped-{self.markerObject.id}_updated', NewArray, driver, NDV, 
+                                        xsize, ysize, GeoT, Projection, DataType)
+
+                return NewFileName
+
 
         def get_tiles(self):
                 tiles = []
@@ -181,7 +275,6 @@ class tileGatherer():
                         tiles.append([mercent.x,mercent.y])
                 
                 self.store_raster_clip(square_4326)
-                lol
 
                 x_matrix =  [ p[1] for p in tiles ]
                 y_matrix = [p[0] for p in tiles]
@@ -202,8 +295,9 @@ class tileGatherer():
 
                 total_tiles_matrix = total_tiles_matrix[::-1]
                 self.og_tiles = copy.deepcopy(total_tiles_matrix)
+
                 print(self.og_tiles,'tiles')
-                # self.raster_to_tiff()
+
                 return total_tiles_matrix
 
         def check_files(self,total_tiles_matrix):
@@ -232,58 +326,6 @@ class tileGatherer():
                 for r in remove[::-1]:
                         del total_tiles_matrix[r[0]][r[1]]
                 return total_tiles_matrix
-        
-        def raster_to_tiff(self):  
-                total_tiles_matrix = self.og_tiles
-                print(self.og_tiles)
-                transformer = Transformer.from_crs("epsg:4326", "epsg:3857")
-                for t in total_tiles_matrix:
-                        temp=[]
-                        for y in t:
-                                req = f'https://api.mapbox.com/v4/mapbox.terrain-rgb/15/{y[0]}/{y[1]}@2x.jpg90?access_token=pk.eyJ1IjoiY29zbW9ib2l5IiwiYSI6ImNrNHN0dmwzZjBwMnkzbHFkM3pvaTBybDQifQ.pfeEvOIWJc60mdHtn8_uAQ'
-                                req = requests.get(req)
-                                image = Image.open(BytesIO(req.content))
-                                data = np.asarray(image)
-                                image = tifffile.imwrite(f'{y[0]}-{y[1]}.tif', data, photometric='rgb')
-                                src_filename =f'{y[0]}-{y[1]}.tif'
-                                dst_filename = 'destination_ref.tif'
-                                x_pixal_world = ((512*y[0]))
-                                y_pixal_world = ((512*y[1]))
-                                lat,lon =  self.converter.PixelXYToLatLongOSM(x_pixal_world,y_pixal_world,15)
-                                maerc_lat,maerc_lon = transformer.transform(lat, lon)
-                                # Opens source dataset
-                                src_ds = gdal.Open(src_filename)
-                                format = "GTiff"
-                                driver = gdal.GetDriverByName(format)
-
-                                # Open destination dataset
-                                dst_ds = driver.CreateCopy(dst_filename, src_ds, 0)
-
-                                # Specify raster location through geotransform array
-                                # (uperleftx, scalex, skewx, uperlefty, skewy, scaley)
-                                # Scale = size of one pixel in units of raster projection
-                                # this example below assumes 100x100
-                                gt = [maerc_lat, 2.245  , 0, maerc_lon , 0, -2.245 ]
-
-                                # Set location
-                                dst_ds.SetGeoTransform(gt)
-                        
-                                # Get raster projection
-                                epsg = 3857
-                                srs = osr.SpatialReference()
-                                srs.ImportFromEPSG(epsg)
-                                dest_wkt = srs.ExportToWkt()
-                                print(dest_wkt,'lol')
-                                # Set projection
-                                dst_ds.SetProjection("""PROJCS["WGS 84 / Pseudo-Mercator",GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4326"]],PROJECTION["Mercator_1SP"],PARAMETER["central_meridian",0],PARAMETER["scale_factor",1],PARAMETER["false_easting",0],PARAMETER["false_northing",0],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["X",EAST],AXIS["Y",NORTH],EXTENSION["PROJ4","+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs"],AUTHORITY["EPSG","3857"]]""")
-
-                                print(dst_ds.GetProjection())
-
-                                # Close files
-                                dst_ds = None
-                                src_ds = None
-                                lol
-
 
         def get_raster_tiles(self,total_tiles_matrix):
                 filled_tiles_matrix = []
@@ -326,7 +368,6 @@ class tileGatherer():
                                         
                 t2 = time.perf_counter()
                 print(f"{t2-t1} Seconds")
-                # self.raster_to_tiff()
 
         def decode_tile(self,tile,iStartRange,iEndRange,filledTile):
                 transformer = Transformer.from_crs("epsg:4326", "epsg:3857")

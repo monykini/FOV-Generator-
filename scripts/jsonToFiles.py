@@ -12,6 +12,8 @@ import math
 import time
 import shapely
 from osgeo import gdal,ogr,osr
+import rasterio
+import rasterio.features
 
 world_shp = f'buidlingsData/elevation/'
 input_name ='30n060e_20101117_gmted_max075.tif'
@@ -54,88 +56,13 @@ def create_fov(hexa_center , userPoint ,angle):
 
 
 
-def GetExtent(ds):
-        """ Return list of corner coordinates from a gdal Dataset """
-        xmin, xpixel, _, ymax, _, ypixel = ds.GetGeoTransform()
-        width, height = ds.RasterXSize, ds.RasterYSize
-        xmax = xmin + width * xpixel
-        ymin = ymax + height * ypixel
-
-        return (xmin, ymax), (xmax, ymax), (xmax, ymin), (xmin, ymin)
-
-def ReprojectCoords(coords,src_srs,tgt_srs):
-
-        trans_coords=[]
-        transform = osr.CoordinateTransformation( src_srs, tgt_srs)
-        for x,y in coords:
-                x,y,z = transform.TransformPoint(x,y)
-                trans_coords.append([x,y])
-        return trans_coords
-
-
-def get_raster_bounds(filename = None):
-        if filename == None:
-                raster=r'data.tif'
-        else:
-                raster = filename
-        print(raster)
-        ds=gdal.Open(raster)
-        print(ds)
-        ext=GetExtent(ds)
-        print(ext)
-        print(ds.RasterCount)
-        src_srs=osr.SpatialReference()
-        src_srs.ImportFromWkt(ds.GetProjection())
-        #tgt_srs=osr.SpatialReference()
-        #tgt_srs.ImportFromEPSG(4326)
-        print(src_srs)
-        tgt_srs = src_srs.CloneGeogCS()
-        print(tgt_srs)
-        geo_ext=ReprojectCoords(ext, src_srs, tgt_srs)
-
-        return geo_ext
-
-
-
-def pixel(dx,dy):
-    px = file.GetGeoTransform()[0]
-    py = file.GetGeoTransform()[3]
-    rx = file.GetGeoTransform()[1]
-    ry = file.GetGeoTransform()[5]
-    x = dx/rx + px
-    y = dy/ry + py
-    return x,y
-
-def georefrence():
-        src_filename ='9650-12314.tif'
-        dst_filename = 'destination_ref.tif'
-
-        # Opens source dataset
-        src_ds = gdal.Open(src_filename)
-        format = "GTiff"
-        driver = gdal.GetDriverByName(format)
-
-        # Open destination dataset
-        dst_ds = driver.CreateCopy(dst_filename, src_ds, 0)
-
-        # Specify raster location through geotransform array
-        # (uperleftx, scalex, skewx, uperlefty, skewy, scaley)
-        # Scale = size of one pixel in units of raster projection
-        # this example below assumes 100x100
-        gt = [-7916400, 100, 0, 5210940, 0, -100]
-
-        # Set location
-        dst_ds.SetGeoTransform(gt)
-
-        # Get raster projection
-        epsg = 3857
-        srs = osr.SpatialReference()
-        srs.ImportFromEPSG(epsg)
-        dest_wkt = srs.ExportToWkt()
-
-        # Set projection
-        dst_ds.SetProjection(dest_wkt)
-
-        # Close files
-        dst_ds = None
-        src_ds = None
+def GetExtent():
+        with rasterio.open('userRasters/usama.khan/output.tif') as src:
+                crs = src.crs
+                src_band = src.read(1)
+                # Keep track of unique pixel values in the input band
+                unique_values = [255]
+                # Polygonize with Rasterio. `shapes()` returns an iterable
+                # of (geom, value) as tuples
+                shapes = list(rasterio.features.shapes(src_band, transform=src.transform))
+        print(shapes)
