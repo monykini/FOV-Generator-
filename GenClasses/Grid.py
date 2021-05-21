@@ -170,10 +170,10 @@ class hexaGrid():
                         outputfile = path+ f'cliped-{marker.id}_viewshed_{fs.id}.tif'
                         workingDir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
                         
-                        print('-ox',f'{fs.center[0]}','-oy',f'{fs.center[1]}')
+                        # print('-ox',f'{fs.center[0]}','-oy',f'{fs.center[1]}')
                         process = Popen(['gdal_viewshed','-cc','0','-b','1','-md','0','-ox',f'{fs.center[0]}','-oy',f'{fs.center[1]}',inputfile,outputfile], stdout=PIPE, stderr=PIPE,cwd=workingDir)
                         stdout, stderr = process.communicate()
-                        print(stdout, stderr)
+                        # print(stdout, stderr)
                         with rasterio.open(outputfile) as src:
                                 crs = src.crs
                                 src_band = src.read(1)
@@ -184,8 +184,23 @@ class hexaGrid():
                                 shapes = list(rasterio.features.shapes(src_band, transform=src.transform))
                         # print(shapes)
                         # lol
+                        fov = modelFOV.objects.get(flatSurface = fs)
+                        obs = []
                         for s in shapes:
-                                if s[1] >= 255:
+                                if s[1] <= 20: #changes to >=
                                         poly = geos.Polygon(tuple(s[0]['coordinates'][0]))
-                                        obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = poly )
+                                        if poly.intersects(fov.wsg48polygon):
+                                                try:
+                                                        clipped = poly.intersection(fov.wsg48polygon)
+                                                        # print(type(clipped))
+                                                        if clipped.geom_typeid == 6:
+                                                                for c in clipped.coords:
+                                                                        if len(c) > 3:
+                                                                                geom = geos.Polygon(c)
+                                                                                obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = geom )
+                                                        else:
+                                                                obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = clipped )
+
+                                                except:
+                                                        pass
                         

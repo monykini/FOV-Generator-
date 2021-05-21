@@ -115,7 +115,7 @@ class tileGatherer():
                 max_x,max_y,min_x,min_y = max(lons_x),max(lats_y),min(lons_x),min(lats_y) 
                 
                 ds=gdal.Open(raster)
-                ds = gdal.Translate(userRasterPath+clipped_filename, ds, projWin = [min_x-0.001, max_y+0.001, max_x+0.001,  min_y-0.001])
+                ds = gdal.Translate(userRasterPath+clipped_filename, ds, projWin = [min_x-0.001, max_y+0.001, max_x+0.001,  min_y-0.001],xRes=0.00001, yRes=0.00001, resampleAlg="bilinear", format='vrt')
                 ds = None  
                 
                 print([min_x, max_y, max_x,  min_y])
@@ -185,6 +185,7 @@ class tileGatherer():
                         Origin_Y = geotransform[3]
                         Cell_Size = geotransform[1]
                         print(Cell_Size,"cell")
+                        print(geotransform[5],"cell")
                         CRS = dem.GetProjection() # make sure that CRS is on geographic coordinate system because you use lat/long 
                         points = []
                         for col_x in range(len(DEM_Value)):

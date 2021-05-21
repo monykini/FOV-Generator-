@@ -10,6 +10,7 @@ import os
 SIZE_CHOICES = ((0,'8px') , (1,'9px') ,(2,'10px') ,(3,'11px') )
 COLOR_CHOICES = (('LM','Light Mode') , ('DM','Dark Mode') ,('CBA','Color Blind Assist',))
 FONT_CHOICES = ((0,'Sans') , (1,'Caliber') ,(2,'Romans') )
+MAP_CHOICES = ((0,'Street view') , (1,'Navigation View') ,(2,'Satellite View') )
 
 
 class Profile(models.Model):
@@ -21,6 +22,7 @@ class Profile(models.Model):
     Marker_Color = models.CharField(max_length = 10 , default="9d6c6c")
     Selected_Color = models.CharField(max_length = 10 , default="00ff11")
     Hotspot_Color = models.CharField(max_length = 10 , default="d50101")
+    Map_Style = models.PositiveSmallIntegerField(choices = MAP_CHOICES, default = 0)
 # Create your models here.
 
 class Hotspots(models.Model):

@@ -208,8 +208,13 @@ var currentMarkers;
 mapboxgl.accessToken = 'pk.eyJ1IjoibW9ueWtpbmkxMTEiLCJhIjoiY2tmeWE2ZmZzMjMzczJwcGRreGt5ZHpzcSJ9.2fx-rNkpReTIWWzjGTJo_g';
     var map = new mapboxgl.Map({
         container: 'map',
-        style:        'mapbox://styles/monykini111/ckfzugdmf1ftk1alpt0whio6d',
-        // style: 'mapbox://styles/cosmoboiy/ckopwyuaf7mu818pl8if2b100',
+        {% if request.session.profile.Map_Style == 1 %}
+        style:'mapbox://styles/cosmoboiy/ckfzugct71l4z19pqgyese3b8',
+        {% elif request.session.profile.Map_Style == 2 %}
+        style: 'mapbox://styles/cosmoboiy/ckopwyuaf7mu818pl8if2b100',
+        {% else %}
+        style: 'mapbox://styles/cosmoboiy/ck9yhwkz51gis1ilvb9foota9',
+        {% endif %}
         // [73.0501, 33.7077],
         center: [-73.97049764067823,40.76466662545835],
         zoom: 12,
@@ -301,42 +306,47 @@ map.on('load', function () {
             if (error) throw error;
             map.addImage('custom-marker', image);}
     )
-    map.addLayer(
-        {
-            'id': '3d-buildings',
-            'source': 'composite',
-            'source-layer': 'building',
-            'filter': ['==', 'extrude', 'true'],
-            'type': 'fill-extrusion',
-            'minzoom': 15,
-            'paint': {
-                'fill-extrusion-color': '#aaa',
+    
+    {% if request.session.profile.Map_Style != 2 %}
 
-                // use an 'interpolate' expression to add a smooth transition effect to the
-                // buildings as the user zooms in
-                'fill-extrusion-height': [
-                    'interpolate',
-                    ['linear'],
-                    ['zoom'],
-                    15,
-                    0,
-                    15.05,
-                    ['get', 'height']
-                ],
-                'fill-extrusion-base': [
-                    'interpolate',
-                    ['linear'],
-                    ['zoom'],
-                    15,
-                    0,
-                    15.05,
-                    ['get', 'min_height']
-                ],
-                'fill-extrusion-opacity': 0.6
-            }
-        },
-        labelLayerId
-    );
+    // map.addLayer(
+    //     {
+    //         'id': '3d-buildings',
+    //         'source': 'composite',
+    //         'source-layer': 'building',
+    //         'filter': ['==', 'extrude', 'true'],
+    //         'type': 'fill-extrusion',
+    //         'minzoom': 15,
+    //         'paint': {
+    //             'fill-extrusion-color': '#aaa',
+
+    //             // use an 'interpolate' expression to add a smooth transition effect to the
+    //             // buildings as the user zooms in
+    //             'fill-extrusion-height': [
+    //                 'interpolate',
+    //                 ['linear'],
+    //                 ['zoom'],
+    //                 15,
+    //                 0,
+    //                 15.05,
+    //                 ['get', 'height']
+    //             ],
+    //             'fill-extrusion-base': [
+    //                 'interpolate',
+    //                 ['linear'],
+    //                 ['zoom'],
+    //                 15,
+    //                 0,
+    //                 15.05,
+    //                 ['get', 'min_height']
+    //             ],
+    //             'fill-extrusion-opacity': 0.6
+    //         }
+    //     },
+    //     labelLayerId
+    // );
+
+    {% endif %}
 
     // "mapbox-terrain-dem-v1": {
     // "type": "raster-dem",
