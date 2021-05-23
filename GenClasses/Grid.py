@@ -165,13 +165,14 @@ class hexaGrid():
                 # print(ds)
                 # print(ds.GetRasterBand(1).ReadAsArray())
                 # ds=None
+                shapes=[]
                 for fs in modelFlatSurface.objects.filter(marker = marker):
                         inputfile = path + f'cliped-{marker.id}_updated.tif'
                         outputfile = path+ f'cliped-{marker.id}_viewshed_{fs.id}.tif'
                         workingDir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
                         
                         # print('-ox',f'{fs.center[0]}','-oy',f'{fs.center[1]}')
-                        process = Popen(['gdal_viewshed','-cc','0','-b','1','-md','0','-ox',f'{fs.center[0]}','-oy',f'{fs.center[1]}',inputfile,outputfile], stdout=PIPE, stderr=PIPE,cwd=workingDir)
+                        process = Popen(['gdal_viewshed','-b','1','-md','0','-ox',f'{fs.center[0]}','-oy',f'{fs.center[1]}',inputfile,outputfile], stdout=PIPE, stderr=PIPE,cwd=workingDir)
                         stdout, stderr = process.communicate()
                         # print(stdout, stderr)
                         with rasterio.open(outputfile) as src:
@@ -187,20 +188,24 @@ class hexaGrid():
                         fov = modelFOV.objects.get(flatSurface = fs)
                         obs = []
                         for s in shapes:
-                                if s[1] <= 20: #changes to >=
+                                if s[1] >= 250: #changes to >=
                                         poly = geos.Polygon(tuple(s[0]['coordinates'][0]))
-                                        if poly.intersects(fov.wsg48polygon):
-                                                try:
-                                                        clipped = poly.intersection(fov.wsg48polygon)
-                                                        # print(type(clipped))
-                                                        if clipped.geom_typeid == 6:
-                                                                for c in clipped.coords:
-                                                                        if len(c) > 3:
-                                                                                geom = geos.Polygon(c)
-                                                                                obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = geom )
-                                                        else:
-                                                                obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = clipped )
+                                        # if poly.contains(marker.wsg48polygon):
+                                        #         obs.append(fs.id)
+                                        # if poly.intersects(fov.wsg48polygon):
+                                        #         try:
+                                        #                 clipped = poly.intersection(fov.wsg48polygon)
+                                        #                 # print(type(clipped))
+                                        #                 if clipped.geom_typeid == 6:
+                                        #                         for c in clipped.coords:
+                                        #                                 if len(c) > 3:
+                                        #                                         geom = geos.Polygon(c)
+                                        obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = poly )
+                                                #         else:
+                                                #                 if clipped.intersects(marker.wsg48polygon):
+                                                #                                         obs.append(fs.id)
+                                                #                 obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = clipped )
 
-                                                except:
-                                                        pass
-                        
+                                                # except:
+                                                #         pass
+                # modelFlatSurface.objects.filter(id__in=obs).delete()

@@ -14,7 +14,9 @@ urlpatterns = [
     path('retrieve/hotspots/<str:id>', views.RetrieveHotSpot.as_view(), name = 'retrievehotspots'),
     path('update/hotspots/<str:id>', views.UpdateHotSpot.as_view(), name = 'updatehotspots'),
     path('create/fov', views.CreateLocationDetails.as_view(), name = 'createfov'),
-    path('delete/fov/<str:id>', views.DeleteHotSpots.as_view(), name = 'deletefov'),
+    path('delete/fov/<str:id>', views.DeleteLocation.as_view(), name = 'deletefov'),
+    path('retreive/fov/<str:id>', views.viewLocationRetreive.as_view(), name = 'retreivefov'),
+    path('List/user/fov/', views.ListUserLocations.as_view(), name = 'listuserfov'),
 
 
     

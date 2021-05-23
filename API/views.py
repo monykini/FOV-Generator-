@@ -17,8 +17,9 @@ from rest_framework.authtoken.models import Token
 from rest_framework.exceptions import APIException
 from rest_framework.parsers import JSONParser
 
-from .serializer import HotSpotSerializer
+from .serializer import HotSpotSerializer,LocationSerializer
 from users.models import Hotspots
+from generator.models import modelUserMarker
 from GenClasses.main import FOV_fucade
 from generator.models import modelPoint
 from GenClasses.Shapes import userMarker
@@ -41,7 +42,6 @@ class ListUserHoptSpots(generics.ListAPIView):
     serializer_class = HotSpotSerializer
 
     def get_queryset(self):
-        print(self.request.GET)
         user = self.request.user
         spots = Hotspots.objects.filter(User = user)
         return spots
@@ -102,17 +102,36 @@ class CreateLocationDetails(APIView):
         latlon = json.loads(request.POST.get('lonlat',"[0,0]"))
         area = request.POST.get('area',None)
         fucade = FOV_fucade() 
-        data2 , hexas = fucade.create_FOV(request,latlon,float(area))
-        return Response({'flatSurfaces':data2 , 'Hexas':hexas })
+        data2 , hexas , markerID = fucade.create_FOV(request,latlon,float(area))
+        return Response({'flatSurfaces':data2 , 'Hexas':hexas ,"id":markerID})
 
 
-class DeleteLocationDetails(APIView):
+class DeleteLocation(generics.DestroyAPIView):
+    
+    serializer_class = LocationSerializer
 
-    allowed_methods =['Post','Delete']
+    def destroy(self,request,id=None, *args, **kwargs):
+        user = self.request.user
+        queryset = modelUserMarker.objects.filter(user = user)
+        spots = get_object_or_404(queryset, id=id)
+        modelUserMarker.objects.get(id=id).delete()
+        return Response({"delete":True})
 
-    def post(self, request,format=None,id=None):
-        Hotspots.modelUserMarker.get(id = int(id)).delete()
-        return Response({'delete':True})
+class viewLocationRetreive(generics.RetrieveAPIView):
+
+    def retrieve(self, request,id=None):
+        fucade = FOV_fucade() 
+        data2 , hexas , markerID = fucade.view_fov(request,id)
+        marker = modelUserMarker.objects.get(id=id)
+        return Response({'flatSurfaces':data2 , 'Hexas':hexas ,"id":markerID , "coordinates":list(marker.wsg48point) , "name":marker.name})
+
+class ListUserLocations(generics.ListAPIView):
+
+    serializer_class = LocationSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        return  modelUserMarker.objects.filter(user = user)
 
 
 

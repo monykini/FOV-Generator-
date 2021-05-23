@@ -1,6 +1,6 @@
 from django.contrib.gis.db import models
 from django.contrib.auth.models import User
-
+from django.utils import timezone
 #first lat than lon
 buildingdata_mapping = {
     'height': 'Height',
@@ -45,6 +45,9 @@ class modelUserMarker(models.Model):
     wsg48polygon = models.PolygonField(null = False)
     macpoint = models.PointField(null=False)
     macpolygon = models.PolygonField(null = False)
+    save_model = models.BooleanField(default=False)
+    name = models.CharField(max_length=200,default='')
+    created_on = models.DateTimeField(default=timezone.now())
 
 
 class modelFlatSurface(models.Model):

@@ -2866,6 +2866,30 @@ hr {
   text-decoration: none;
 }
 
+.ajs-body,.ajs-header,.ajs-footer,.ajs-dialog{
+  background-color: #2a2a2a !important;
+}
+
+.ajs-ok , .ajs-ok:hover , .ajs-ok:focus {
+  background-color: #b6a8cc;
+  color: #2a2a2a;
+  border-radius:2px;
+  border: 0;
+}
+.ajs-cancel, .ajs-cancel:hover , .ajs-cancel:focus{
+  background-color: red;
+  color: white;
+  border-radius:2px;
+  border: 0;
+}
+
+.ajs-input{
+  background: #2a2a2a;
+  border: 1px solid #b6a8cc;
+  color: #b6a8cc;
+  border-radius: 3px;
+}
+
 @media (min-width: 576px) {
   .comment-list .children {
     padding: 20px 0 0 40px;

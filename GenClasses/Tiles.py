@@ -32,6 +32,8 @@ from geopy.geocoders import Nominatim
 from geopy.extra.rate_limiter import RateLimiter
 import glob
 import numpy as np
+# import sys
+# import numpy
 
 
 geolocator = Nominatim(user_agent="route")
@@ -115,7 +117,8 @@ class tileGatherer():
                 max_x,max_y,min_x,min_y = max(lons_x),max(lats_y),min(lons_x),min(lats_y) 
                 
                 ds=gdal.Open(raster)
-                ds = gdal.Translate(userRasterPath+clipped_filename, ds, projWin = [min_x-0.001, max_y+0.001, max_x+0.001,  min_y-0.001],xRes=0.00001, yRes=0.00001, resampleAlg="bilinear", format='vrt')
+                ds = gdal.Translate(userRasterPath+clipped_filename, ds, projWin = [min_x-0.001, max_y+0.001, max_x+0.001,  min_y-0.001])#,xRes=0.00009, yRes=0.00009, resampleAlg="bilinear", format='vrt'
+
                 ds = None  
                 
                 print([min_x, max_y, max_x,  min_y])
@@ -170,7 +173,9 @@ class tileGatherer():
                 dem = gdal.Open(fileName,gdal.GA_ReadOnly)
                 geotransform = dem.GetGeoTransform()
                 DEM_Value = np.array(dem.GetRasterBand(1).ReadAsArray(), dtype ="float") #Raster to Array
+                # numpy.set_printoptions(threshold=sys.maxsize)
                 print(DEM_Value)
+                # lol
                 bounds = self.get_raster_bounds(filename = fileName)
                 bounds.append(bounds[0])
                 bounds = tuple([tuple(b) for b in bounds])
@@ -194,7 +199,9 @@ class tileGatherer():
                                         y = -((row_y*Cell_Size)-Origin_Y)
                                         point = geos.Point(x,y)
                                         for b in buildings:
-                                                if point.intersects(b.geom):
+                                                if b.geom.contains(point):
+                                                        print(x,y)
+                                                        print(b.height)
                                                         DEM_Value[col_x][row_y] += b.height
                                                         break
                 return DEM_Value
@@ -342,6 +349,7 @@ class tileGatherer():
                                 # g = data[..., 1]
                                 # b = data[..., 2]
                                 # decoded_data = (256*r + g + b/256) - 32768
+                                # decoded_data = -10000 + ((r * 256 * 256 + g * 256 + b) * 0.1)
                                 # print(decoded_data)
                                 # print('decoded_data')
                                 temp.append(data)

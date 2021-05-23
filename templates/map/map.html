@@ -4,8 +4,7 @@
 {% block files %}
 <!-- <link href='https://api.mapbox.com/mapbox-gl-js/v2.0.0/mapbox-gl.css' rel='stylesheet' /> -->
 <link href="https://api.mapbox.com/mapbox-gl-js/v2.2.0/mapbox-gl.css" rel="stylesheet">
-<script src="//cdn.jsdelivr.net/npm/alertifyjs@1.13.1/build/alertify.min.js"></script>
-<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/alertifyjs@1.13.1/build/css/alertify.min.css"/>
+
 <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.5.1/mapbox-gl-geocoder.min.js"></script>
 <!-- <script src= "https://api.mapbox.com/mapbox-gl-js/v1.12.0/mapbox-gl.js" ></script> -->
 <script src="https://api.mapbox.com/mapbox-gl-js/v2.2.0/mapbox-gl.js"></script>
@@ -13,6 +12,8 @@
 <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.5.1/mapbox-gl-geocoder.css" type="text/css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js" integrity="sha512-qTXRIMyZIFb8iQcfjXWCO8+M5Tbc38Qi5WzdPOYZHIlZpzBHG3L3by84BBBOiRGiEb7KKtAOAs5qYdUiZiQNNQ==" crossorigin="anonymous"></script>
 <link rel="stylesheet" href="{% static 'css/map.css' %}">
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/alertifyjs@1.13.1/build/css/alertify.min.css"/>
+<script src="//cdn.jsdelivr.net/npm/alertifyjs@1.13.1/build/alertify.min.js"></script>
 <style>
 	body { margin: 0; padding: 0; }
 </style>
@@ -22,7 +23,8 @@
 {% block content %}
 <section class="logged-section pt-5">
     <button class="btn btn-primary neonButton calculate" onclick="show('areaForm')" >Calculate Area</button>
-    <button class="btn btn-primary neonButton clearmap" onclick="clearLocationCalulation()" >Clear Map</button>
+    <button class="btn btn-primary neonButton clearmap" onclick="check_locationState()" >Clear Map</button>
+    <button class="btn btn-primary neonButton clearmap saveLocation" onclick="prompt_save_location()" >Save</button>
     
     <button class="btn btn-primary neonButton hotspot-btn" onclick="createHotspot()" >Mark Hotspot</button>
     <button class="btn btn-primary neonButton hotspot-save-btn" onclick="show('hotspotForm')" >save Hotspot</button>
@@ -162,6 +164,8 @@ $.ajaxSetup({
 });
 
 
+var active_id = null;
+
 function displatDefaultButtons(){
     $(".calculate").show();
     $(".hotspot-btn").show();
@@ -259,6 +263,7 @@ function tile_request(){
                 caluclateMarker.remove();
             }
             caluclateMarker = new mapboxgl.Marker({ "color": "{{request.session.profile.Selected_Color}}" }).setLngLat([lnglat['lng'],lnglat['lat']]).addTo(map);
+            active_id = result.id
             $('.overlay-layers').show()
             map.off('click', showMarker);
             $(".loader-wrapper").hide()
@@ -306,6 +311,8 @@ map.on('load', function () {
             if (error) throw error;
             map.addImage('custom-marker', image);}
     )
+
+    // buildings()
     
     {% if request.session.profile.Map_Style != 2 %}
 
@@ -378,10 +385,11 @@ map.on('load', function () {
     loadHostspotLayer();
 
     {% if hotspotID %}
+        $(".loader-wrapper").show()
         $.ajax({
             url:'{% url "retrievehotspots" id=1%}'.replace('1',"{{hotspotID}}"),
             method:"GET",
-            async:false,
+            // async:false,
             success:function(data){
                 console.log(data)
                 map.flyTo({
@@ -396,17 +404,96 @@ map.on('load', function () {
                 $('.hotspot-img').attr("src", imgurl);
                 $('.overlay-hotspot-info').show()
                 window.history.pushState('map', 'FOV-eyes above sky', '/generate/');
+                $(".loader-wrapper").hide()
+
             },
             error: function(data){
                 console.log(data)
+                $(".loader-wrapper").hide()
+
             }
             
         })
 
     {% endif %}
+        $(".loader-wrapper").show()
+        $.ajax({
+                url:'{% url "retreivefov" id=1%}'.replace('1',"{{locationID}}"),
+                method:"GET",
+                // async:false,
+                success:function(data){
+                    console.log(data)
+                    map.flyTo({
+                    center: data.coordinates,
+                    zoom:15
+                    });
+                    name = data.name
+                    create_square(JSON.stringify(data.flatSurfaces).replace('\'','"'))
+                    create_hexas(JSON.stringify(data.Hexas).replace('\'','"'))
+                    hide('areaForm')
+                    if (caluclateMarker){
+                        caluclateMarker.remove();
+                    }
+                    caluclateMarker = new mapboxgl.Marker({ "color": "{{request.session.profile.Selected_Color}}" }).setLngLat(data.coordinates).addTo(map);
+                    $('.overlay-layers').show()
+                    map.off('click', showMarker);
+                    $(".loader-wrapper").hide()
+                    $(".overlay-summary").show()
+                    $(".overlay-layers").show()
+                    $(".overlay-filters").show()
+                    if(currentMarkers){
+                        currentMarkers.remove();
+                    }
+                    $(".calculate").hide();
+                    $(".hotspot-btn").hide()
+                    $(".clearmap").show();
+                    window.history.pushState('map', 'FOV-eyes above sky', '/generate/');
+                    $(".loader-wrapper").hide()
+
+                },
+                error: function(data){
+                    console.log(data)
+                    $(".loader-wrapper").hide()
+
+                }
+                
+            })
+    {% if locaitonID %}
+
+
+    {% endif %}
 
 
     });
+
+console.log("{% url 'buildingsdata' %}")
+
+function buildings(){
+    $.ajax({
+        url: "{% url 'buildingsdata' %}",
+        method: 'GET',
+        success: function(data){
+            console.log(data)
+            map.addSource('buildSource', {
+            'type': 'geojson',
+            'data':data
+            });
+            map.addLayer({
+            'id': 'buildLayer',
+            'type': 'fill',
+            'source': 'buildSource',
+            'paint': {
+            'fill-color': '#000000',
+            'fill-opacity': 1
+            },
+            // 'filter': ['==', '$type', 'Polygon']
+            });
+        },
+        error: function(data){
+            console.log("buildins error")
+        }
+    })
+}
 
 
 function create_hexas(data){
@@ -463,6 +550,7 @@ function create_square(data){
     'filter': ['==', '$type', 'Polygon']
     });
     map.on('click', 'flatSurfaceLayer', function (e) {
+    console.log(e.features[0].properties)
     // new mapboxgl.Popup()
     // .setLngLat(e.lngLat)
     // .setHTML("<p>average height: "+e.features[0].properties.fov+"</p>")
@@ -511,7 +599,7 @@ function create_square(data){
         'source': 'obsSource',
         'type': 'fill',
         'paint': {
-        'fill-color': '#800888',
+        'fill-color': '#000000',
         'fill-opacity': 0.6
         },
         'filter': ['==', '$type', 'Polygon']
@@ -547,6 +635,18 @@ function create_square(data){
     
 
 }
+
+function check_locationState(){
+    if (active_id != null){
+
+        opt = alertify.confirm("clearing map will cause of loss of view shed",clearLocationCalulation, function(){ alertify.error('Canceled')})
+
+    }
+    else{
+        clearLocationCalulation()
+    }
+}
+
 
 function clearLocationCalulation() {
     if (map.getLayer("HexaLayer")) {
@@ -588,8 +688,10 @@ function clearLocationCalulation() {
     flatsurfacecheckbox = document.getElementById("flatSurfacesLayer")
     flatsurfacecheckbox.checked = true;
     hexalayercheckbox.checked = true;
+    active_id = null;
     map.on('click', showMarker);
     $(".calculate").show();
+    $(".hotspot-btn").show();
     $(".clearmap").hide();
     $(".overlay-summary").hide()
     $(".overlay-layers").hide()
@@ -760,6 +862,33 @@ function showlayer(clickedLayer){
     }
 }
 
+
+function prompt_save_location(){
+    if (active_id == null){
+        alertify.success("Location already saved")
+    }
+    else{
+        alertify.prompt( 'Save Location', 'Please enter a name', 'e.g picnic'
+               , save_location
+               , function() { alertify.error('Cancel') });
+    }
+    
+}
+
+function save_location(evt,name){
+    $.ajax({
+        url:"{% url 'locationsafe' id=1 %}".replace('1',active_id),
+        method:"POST",
+        data:{"name":name},
+        success: function(data){
+            alertify.success("Location Saved")
+            active_id = null
+        },
+        error: function(data){
+            alertify.error("Location couldn't be Saved")
+        }
+    })
+}
 
 document.getElementById("distanceFieldLTE").addEventListener("input", addFilter);
 document.getElementById("distanceFieldGTE").addEventListener("input", addFilter);
