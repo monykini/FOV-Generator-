@@ -117,7 +117,7 @@ class tileGatherer():
                 max_x,max_y,min_x,min_y = max(lons_x),max(lats_y),min(lons_x),min(lats_y) 
                 
                 ds=gdal.Open(raster)
-                ds = gdal.Translate(userRasterPath+clipped_filename, ds, projWin = [min_x-0.001, max_y+0.001, max_x+0.001,  min_y-0.001])#,xRes=0.00009, yRes=0.00009, resampleAlg="bilinear", format='vrt'
+                ds = gdal.Translate(userRasterPath+clipped_filename, ds,xRes=0.00009, yRes=0.00009, resampleAlg="bilinear",projWin = [min_x-0.001, max_y+0.001, max_x+0.001,  min_y-0.001])#,xRes=0.00009, yRes=0.00009, resampleAlg="bilinear", format='vrt'
 
                 ds = None  
                 

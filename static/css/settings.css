@@ -264,6 +264,25 @@ form .btn{
     color: white;
 }
 
+.hotspot-edit-overlay{
+  background-color: #544c5f6b;
+  position:fixed;
+  display:flex ;
+  top:0;
+  left: 0;
+  z-index:99;
+  width:100vw ;
+  height:100vh;
+  display: None;
+}
+.hotspot-edit{
+  width:300px;
+  background-color: #343138 ;
+  width:310px ;
+  padding:20px;
+  border-radius: 2px;
+}
+
 @element '[data-table]' {
   $this,
   $this *,
