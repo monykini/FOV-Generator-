@@ -168,30 +168,13 @@ class hexaGrid():
                 shapes=[]
                 for fs in modelFlatSurface.objects.filter(marker = marker):
                         inputfile = path + f'cliped-{marker.id}_updated.tif'
-                        outputfile = path+ f'cliped-{marker.id}_{fs.id}_epsg3.tif'
+                        outputfile = path+ f'cliped-{marker.id}_viewshed_{fs.id}.tif'
                         workingDir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-
-                        #repoject to eps3
-                        process = Popen(['gdalwarp','-s_srs','epsg:4326','-t_srs','epsg:3857',inputfile,outputfile], stdout=PIPE, stderr=PIPE,cwd=workingDir)
-                        stdout, stderr = process.communicate()
-
-
-                        inputfile = outputfile
-                        outputfile = path+ f'cliped-{marker.id}_{fs.id}_epsg3_viwshed.tif'
+                        
+                        # print('-ox',f'{fs.center[0]}','-oy',f'{fs.center[1]}')
                         process = Popen(['gdal_viewshed','-b','1','-md','0','-ox',f'{fs.center[0]}','-oy',f'{fs.center[1]}',inputfile,outputfile], stdout=PIPE, stderr=PIPE,cwd=workingDir)
                         stdout, stderr = process.communicate()
                         # print(stdout, stderr)
-                        
-
-                        inputfile = outputfile
-                        outputfile = path+ f'cliped-{marker.id}_{fs.id}_viwshed.tif'
-                        #repoject to eps4
-                        process = Popen(['gdalwarp','-s_srs','epsg:3857','-t_srs','epsg:4326',inputfile,outputfile], stdout=PIPE, stderr=PIPE,cwd=workingDir)
-                        stdout, stderr = process.communicate()
-
-
-
                         with rasterio.open(outputfile) as src:
                                 crs = src.crs
                                 src_band = src.read(1)

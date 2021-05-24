@@ -32,6 +32,7 @@ from geopy.geocoders import Nominatim
 from geopy.extra.rate_limiter import RateLimiter
 import glob
 import numpy as np
+import threading
 # import sys
 # import numpy
 
@@ -117,7 +118,7 @@ class tileGatherer():
                 max_x,max_y,min_x,min_y = max(lons_x),max(lats_y),min(lons_x),min(lats_y) 
                 
                 ds=gdal.Open(raster)
-                ds = gdal.Translate(userRasterPath+clipped_filename, ds,xRes=0.00009, yRes=0.00009, resampleAlg="bilinear",projWin = [min_x-0.001, max_y+0.001, max_x+0.001,  min_y-0.001])#,xRes=0.00009, yRes=0.00009, resampleAlg="bilinear", format='vrt'
+                ds = gdal.Translate(userRasterPath+clipped_filename, ds,projWin = [min_x-0.001, max_y+0.001, max_x+0.001,  min_y-0.001])#,xRes=0.00001, yRes=0.00001, resampleAlg="bilinear", format='vrt'
 
                 ds = None  
                 
@@ -166,6 +167,17 @@ class tileGatherer():
                 geo_ext=self.ReprojectCoords(ext, src_srs, tgt_srs)
                 return geo_ext
 
+        def update_dem(self,DEM_Value,start,end,Cell_Size,Origin_X,Origin_Y,buildings):
+                for col_x in range(len(DEM_Value))[start:end]:
+                        for row_y in range(len(DEM_Value[col_x])):
+                                x = (Cell_Size*col_x)+Origin_X 
+                                y = -((row_y*Cell_Size)-Origin_Y)
+                                point = geos.Point(x,y)
+                                for b in buildings:
+                                        if b.geom.contains(point):
+                                                DEM_Value[col_x][row_y] += b.height
+                                                break
+
         def update_raster_with_buildings(self,fileName):
                 # Input DEM
                 # filename = raw_input("Input DEM FILE : ")
@@ -193,17 +205,23 @@ class tileGatherer():
                         print(geotransform[5],"cell")
                         CRS = dem.GetProjection() # make sure that CRS is on geographic coordinate system because you use lat/long 
                         points = []
-                        for col_x in range(len(DEM_Value)):
-                                for row_y in range(len(DEM_Value[col_x])):
-                                        x = (Cell_Size*col_x)+Origin_X 
-                                        y = -((row_y*Cell_Size)-Origin_Y)
-                                        point = geos.Point(x,y)
-                                        for b in buildings:
-                                                if b.geom.contains(point):
-                                                        print(x,y)
-                                                        print(b.height)
-                                                        DEM_Value[col_x][row_y] += b.height
-                                                        break
+                        size = len(DEM_Value)
+                        division = math.ceil(size/10)
+                        threads = []
+                        for d in range(10):
+                                threads.append(threading.Thread(target=self.update_dem, args=(DEM_Value,d*division,(d+1)*division,Cell_Size,Origin_X,Origin_Y,buildings),))
+                                threads[d].start()
+                        for d in range(10):
+                                threads[d].join()
+                        # for col_x in range(len(DEM_Value)):
+                        #         for row_y in range(len(DEM_Value[col_x])):
+                        #                 x = (Cell_Size*col_x)+Origin_X 
+                        #                 y = -((row_y*Cell_Size)-Origin_Y)
+                        #                 point = geos.Point(x,y)
+                        #                 for b in buildings:
+                        #                         if b.geom.contains(point):
+                        #                                 DEM_Value[col_x][row_y] += b.height
+                        #                                 break
                 return DEM_Value
 
         def GetGeoInfo(self,FileName):
