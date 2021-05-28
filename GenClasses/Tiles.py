@@ -33,6 +33,7 @@ from geopy.extra.rate_limiter import RateLimiter
 import glob
 import numpy as np
 import threading
+import pandas as pd
 # import sys
 # import numpy
 
@@ -56,6 +57,20 @@ class tileGatherer():
                 self.markerID = kwargs.get("markerID",None)
                 self.markerObject = kwargs.get("markerObject",None)
         
+
+        def create_raster_db(self,square):
+                marker = modelUserMarker.objects.get(id=self.markerID)
+                points =  modelPoint.objects.filter(wsg48Point__intersects = marker.wsg48polygon)
+                dict_points = []
+                for p in points:
+                        temp = {"x":p.macPoint[1],"y":p.macPoint[0],"height":p.height}
+                        dict_points.append(temp)
+                df= pd.DataFrame(dict_points,index=False)
+                df = df.sort_values(["x","y"])
+                print(df)
+                
+
+
 
         def store_raster_clip(self,square):
                 locations=[]
@@ -99,6 +114,8 @@ class tileGatherer():
                                 if userPolygon.intersects(rasterPolygon):
                                         valid_raster.append(f)
                                         # print(bounds)
+                # print(valid_raster)
+                # lol
                 raster = None
                 userRasterPath = f"userRasters/{self.markerObject.user.username}/"
                 if len(valid_raster) > 1:
@@ -110,7 +127,7 @@ class tileGatherer():
                 else:
                       raster = valid_raster[0]
                 
-                
+                print(raster)
                 clipped_filename = f"cliped-{self.markerObject.id}.tif" 
                 
                 lats_y = [s[0] for s in square]
@@ -118,7 +135,7 @@ class tileGatherer():
                 max_x,max_y,min_x,min_y = max(lons_x),max(lats_y),min(lons_x),min(lats_y) 
                 
                 ds=gdal.Open(raster)
-                ds = gdal.Translate(userRasterPath+clipped_filename, ds,projWin = [min_x-0.001, max_y+0.001, max_x+0.001,  min_y-0.001])#,xRes=0.00001, yRes=0.00001, resampleAlg="bilinear", format='vrt'
+                ds = gdal.Translate(userRasterPath+clipped_filename, ds,projWin = [min_x-0.001, max_y+0.001, max_x+0.001,  min_y-0.001])#, resampleAlg="cubic",xRes=0.00001, yRes=0.00001, format='vrt'
 
                 ds = None  
                 
@@ -167,16 +184,35 @@ class tileGatherer():
                 geo_ext=self.ReprojectCoords(ext, src_srs, tgt_srs)
                 return geo_ext
 
-        def update_dem(self,DEM_Value,start,end,Cell_Size,Origin_X,Origin_Y,buildings):
+        def update_dem(self,DEM_Value,start,end,Cell_Size,Origin_X,Origin_Y,buildings,points):
                 for col_x in range(len(DEM_Value))[start:end]:
                         for row_y in range(len(DEM_Value[col_x])):
                                 x = (Cell_Size*col_x)+Origin_X 
                                 y = -((row_y*Cell_Size)-Origin_Y)
-                                point = geos.Point(x,y)
-                                for b in buildings:
-                                        if b.geom.contains(point):
-                                                DEM_Value[col_x][row_y] += b.height
-                                                break
+
+                                try:
+                                        x_pixal,y_pixal = self.converter.LatLongToPixelXYOSM(y,x,15)
+                                        # print(x_pixal,y_pixal)
+                                        point = points.filter(world_pixal_xy = json.dumps([x_pixal,y_pixal]))[0]
+
+                                        for b in buildings:
+                                                if b.geom.contains(point.wsg48Point):
+                                                        DEM_Value[col_x][row_y] = point.height + b.height
+                                                else:
+                                                        DEM_Value[col_x][row_y] = point.height
+
+                                except:
+                                        pass
+                                        # DEM_Value[col_x][row_y] = -32767
+                                        # x = (Cell_Size*col_x)+Origin_X 
+                                        # y = -((row_y*Cell_Size)-Origin_Y)
+                                        # point = geos.Point(x,y)
+                                        # for b in buildings:
+                                        #         if b.geom.contains(point):
+                                        #                 DEM_Value[col_x][row_y] += b.height
+                                        # print("lmao")
+                                        # pass
+                                        
 
         def update_raster_with_buildings(self,fileName):
                 # Input DEM
@@ -193,6 +229,7 @@ class tileGatherer():
                 bounds = tuple([tuple(b) for b in bounds])
                 polygon = geos.Polygon(bounds)
                 buildings = buildingData.objects.filter(geom__intersects = polygon)
+                modelspoints = modelPoint.objects.filter(wsg48Point__intersects = polygon)
                 
                 if len(buildings) > 0:
                         # Determine Basic Raster's Parameter
@@ -206,22 +243,42 @@ class tileGatherer():
                         CRS = dem.GetProjection() # make sure that CRS is on geographic coordinate system because you use lat/long 
                         points = []
                         size = len(DEM_Value)
-                        division = math.ceil(size/10)
+                        division = math.ceil(size/5)
                         threads = []
-                        for d in range(10):
-                                threads.append(threading.Thread(target=self.update_dem, args=(DEM_Value,d*division,(d+1)*division,Cell_Size,Origin_X,Origin_Y,buildings),))
-                                threads[d].start()
-                        for d in range(10):
-                                threads[d].join()
-                        # for col_x in range(len(DEM_Value)):
-                        #         for row_y in range(len(DEM_Value[col_x])):
-                        #                 x = (Cell_Size*col_x)+Origin_X 
-                        #                 y = -((row_y*Cell_Size)-Origin_Y)
-                        #                 point = geos.Point(x,y)
-                        #                 for b in buildings:
-                        #                         if b.geom.contains(point):
-                        #                                 DEM_Value[col_x][row_y] += b.height
-                        #                                 break
+                        # for d in range(5):
+                        #         threads.append(threading.Thread(target=self.update_dem, args=(DEM_Value,d*division,(d+1)*division,Cell_Size,Origin_X,Origin_Y,buildings,modelspoints),))
+                        #         threads[d].start()
+                        # for d in range(5):
+                        #         threads[d].join()
+                        # print(DEM_Value)
+                        for col_x in range(len(DEM_Value)):
+                                for row_y in range(len(DEM_Value[col_x])):
+                                        x = geotransform[0] + col_x*geotransform[1] + row_y*geotransform[2]
+                                        y = geotransform[3] + col_x*geotransform[4] + row_y*geotransform[5]
+
+                                        # x = (Cell_Size*col_x)+Origin_X 
+                                        # y = -((row_y*Cell_Size)-Origin_Y)
+
+                                        try:
+                                                x_pixal,y_pixal = self.converter.LatLongToPixelXYOSM(y,x,15)
+                                                # print(x_pixal,y_pixal)
+                                                point = modelspoints.filter(world_pixal_xy = json.dumps([x_pixal,y_pixal]))[0]
+                                                found =  0
+                                                DEM_Value[col_x][row_y] = point.height
+                                                for b in buildings:
+                                                        if b.geom.contains(point.wsg48Point):
+                                                                DEM_Value[col_x][row_y] += b.height
+                                                                break
+
+                                                
+                                        except:
+                                                point = geos.Point(x,y)
+                                                for b in buildings:
+                                                        if b.geom.contains(point):
+                                                                DEM_Value[col_x][row_y] += b.height
+                                                                break
+                        
+                                
                 return DEM_Value
 
         def GetGeoInfo(self,FileName):
@@ -254,7 +311,7 @@ class tileGatherer():
                 DataSet.SetProjection( Projection.ExportToWkt() )
                 # Write the array
                 DataSet.GetRasterBand(1).WriteArray( Array )
-                DataSet.GetRasterBand(1).SetNoDataValue(NDV)
+                # DataSet.GetRasterBand(1).SetNoDataValue(NDV)
 
                 return NewFileName
 
@@ -300,14 +357,13 @@ class tileGatherer():
                         mercent = mercantile.tile(p[1],p[0],15)
                         tiles.append([mercent.x,mercent.y])
                 
-                self.store_raster_clip(square_4326)
 
                 x_matrix =  [ p[1] for p in tiles ]
                 y_matrix = [p[0] for p in tiles]
                 
                 x_matrix_max , x_matrix_min = max(x_matrix) , min(x_matrix)
-                y_matrix_max , y_matrix_min = max(y_matrix) , min(y_matrix) 
-
+                y_matrix_max , y_matrix_min = max(y_matrix) , min(y_matrix)
+                print(x_matrix_max , x_matrix_min)
                 total_x_axis_tiles = x_matrix_max-x_matrix_min+1
                 total_y_axis_tiles = y_matrix_max-y_matrix_min+1
 
@@ -360,6 +416,7 @@ class tileGatherer():
                         temp=[]
                         for y in t:
                                 req = f'https://api.mapbox.com/v4/mapbox.terrain-rgb/15/{y[0]}/{y[1]}@2x.jpg90?access_token=pk.eyJ1IjoiY29zbW9ib2l5IiwiYSI6ImNrNHN0dmwzZjBwMnkzbHFkM3pvaTBybDQifQ.pfeEvOIWJc60mdHtn8_uAQ'
+                                print(req)
                                 req = requests.get(req)
                                 image = Image.open(BytesIO(req.content))
                                 data = np.asarray(image)
@@ -379,7 +436,7 @@ class tileGatherer():
 
         def convert_raster_tiles(self):
                 t1 = time.perf_counter()
-
+                print('ok')
                 total_tiles_matrix = self.check_files(self.get_tiles())
                 total_tiles_matrix , filled_tiles_matrix  = self.get_raster_tiles(total_tiles_matrix)
 
@@ -395,6 +452,8 @@ class tileGatherer():
                                         
                 t2 = time.perf_counter()
                 print(f"{t2-t1} Seconds")
+                square_4326 = self.userMarker
+                # self.store_raster_clip(square_4326)
 
         def decode_tile(self,tile,iStartRange,iEndRange,filledTile):
                 transformer = Transformer.from_crs("epsg:4326", "epsg:3857")

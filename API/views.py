@@ -17,7 +17,7 @@ from rest_framework.authtoken.models import Token
 from rest_framework.exceptions import APIException
 from rest_framework.parsers import JSONParser
 
-from .serializer import HotSpotSerializer,LocationSerializer
+from .serializer import HotSpotSerializer,LocationSerializer,ModelPointSerializer
 from users.models import Hotspots
 from generator.models import modelUserMarker
 from GenClasses.main import FOV_fucade
@@ -135,3 +135,6 @@ class ListUserLocations(generics.ListAPIView):
 
 
 
+class ListModelPoints(generics.ListAPIView):
+    queryset = modelPoint.objects.all()
+    serializer_class = ModelPointSerializer

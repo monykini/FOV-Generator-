@@ -17,6 +17,7 @@ urlpatterns = [
     path('delete/fov/<str:id>', views.DeleteLocation.as_view(), name = 'deletefov'),
     path('retreive/fov/<str:id>', views.viewLocationRetreive.as_view(), name = 'retreivefov'),
     path('List/user/fov/', views.ListUserLocations.as_view(), name = 'listuserfov'),
+    path('List/Points/', views. ListModelPoints.as_view(), name = 'listpoints'),
 
 
     

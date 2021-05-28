@@ -10,7 +10,7 @@ from rest_framework.parsers import FormParser
 from rest_framework.parsers import FileUploadParser
 from rest_framework.parsers import JSONParser
 from users.models import Hotspots
-from generator.models import modelUserMarker
+from generator.models import modelUserMarker,modelPoint
 
 from datetime import datetime
 import pytz
@@ -19,6 +19,12 @@ import json
 
 import base64
 
+class ModelPointSerializer(GeoFeatureModelSerializer):
+    class Meta:
+        model = modelPoint
+        geo_field = "wsg48Point"
+        fields = ['id']
+        read_only='__all__'
 
 
 class HotSpotSerializer(GeoFeatureModelSerializer):

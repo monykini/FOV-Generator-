@@ -13,6 +13,7 @@ from osgeo import gdal,ogr,osr
 import rasterio
 import rasterio.features
 import os
+import pandas as pd
 
 class hexaGrid():
         """
@@ -136,12 +137,14 @@ class hexaGrid():
                                 flat_Surface = flatSurface(flatpoints,hexa)
                                 flat_Surface.insidePoints = hexa.falt_sufrace_allPoints[i]
                                 flat_Surface.get_area_flat_surface()
+                                # print("area" ,flat_Surface.area )
                                 if flat_Surface.area >= self.CoverageArea:
                                         fov  = FOV()
                                         fov.create_fov(flat_Surface.center  , self.userMarker.get_latlonMac())
-                                        if (fov.height >= 100 and fov.height <=4000) and (flat_Surface.modeHeight + 2 >= self.userMarker.Height) :
+                                        if (fov.height >= 100 and fov.height <=4000) :
                                                 # fov.get_obstruction(flat_Surface.insidePoints,flat_Surface.modeHeight,self.userMarker)
                                                 flat_Surface.fov = fov
+                                                # print(flat_Surface.get_sides_4326())
                                                 wsg48polygon = Polygon(tuple([tuple(li[::-1]) for li in flat_Surface.get_sides_4326()]))
                                                 macpolygon = Polygon(tuple([tuple(li[::-1]) for li in flat_Surface.get_sides_mac()]))
                                                 distance = Point(flat_Surface.center[0],flat_Surface.center[1]).distance(Point(marker.macpoint[1],marker.macpoint[0]))
@@ -158,49 +161,202 @@ class hexaGrid():
                 return self.flat_surfaces
         
 
+        def convert_pixal(self,poly,points):
+                po = []
+                print(poly.coords[0])
+                for p in poly.coords[0]:
+                        x,y = int(p[0]+0.5) , int(p[1]-0.5)
+                        poi = points.get(world_pixal_xy = json.dumps([x,y])) 
+                        po.append((poi.wsg48Point[0],poi.wsg48Point[1]))
+                po = tuple(po)
+                print(po)
+                poly = geos.Polygon(po)
+                return poly
+
+        def convert_mac_lat(self,poly,transformer_4326):
+                po = []
+                print(poly.coords[0])
+                for p in poly.coords[0]:
+                        x,y = transformer_4326.transform(p[0],p[1])
+                        po.append((y,x))
+                po = tuple(po)
+                print(po)
+                poly = geos.Polygon(po)
+                return poly
+
+        def create_raster_beta(self):
+
+                marker = modelUserMarker.objects.get(id=self.userMarker.id)
+
+                userRasterPath = f"userRasters/{marker.user.username}/"
+
+
+                points = modelPoint.objects.filter(wsg48Point__intersects =marker.wsg48polygon)
+                buildings = buildingData.objects.filter(geom__intersects=marker.wsg48polygon)
+                dict_points=[]
+                for p in points:
+                        x = p.macPoint[1]
+                        y = p.macPoint[0]
+                        temp = {"x":x,"y":y,"height":p.height}
+                        dict_points.append(temp)
+                df= pd.DataFrame(dict_points)
+                # print(df)
+                df = df.sort_values(["x","y"],ascending=[True,True])
+                df.to_csv(userRasterPath+f'uneven_{marker.id}.csv',index=False,header=False,sep=" ")
+                print(df)
+                
+                dict_points = []
+                req_interval  = 2.388657134
+                ys=[]
+                df = df.sort_values(["y","x"],ascending=[True,True])
+                df.reset_index(inplace = True, drop = True)
+                previous_y = 0
+                og_prev_y = 0
+                for ID , row in df.iterrows():
+                        if ID == 0 :
+                                previous_y = row["y"]
+                                og_prev_y = row["y"]
+                                y = row["y"]
+                        else:
+                                if og_prev_y == row['y']:
+                                        y = previous_y
+                                else:    
+                                        # difference_y = abs(abs(previous_y) - abs(row["y"]))
+                                        # gap = difference_y - req_interval
+                                        y = previous_y + req_interval
+                                previous_y = y
+                                og_prev_y = row["y"]
+                                # lol
+                        ys.append(y)
+                # print(ys)
+                xs=[]
+                df = df.sort_values(["x","y"],ascending=[True,True])
+                df.reset_index(inplace = True, drop = True)
+                previous_x = 0
+                og_prev_x = 0
+                for ID , row in df.iterrows():
+                        if ID == 0 :
+                                previous_x = row["x"]
+                                og_prev_x = row["x"]
+                                x = row["x"]
+                        else:
+                                if og_prev_x == row['x']:
+                                        x = previous_x
+                                else:    
+                                        # difference_x = abs(abs(previous_x) - abs(row["x"]))
+                                        # gap = difference_x - req_interval
+                                        x = previous_x + req_interval
+                                previous_x = x
+                                og_prev_x = row["x"]
+                                # lol
+                        xs.append(x)
+
+                df = df.sort_values(["x","y"],ascending=[True,True])
+                df['x'] = xs
+                df = df.sort_values(["y","x"],ascending=[True,True])
+                df['y'] = ys
+                
+                
+                df = df.sort_values(["x","y"],ascending=[True,False])
+                
+                
+                df.to_csv(userRasterPath+f'uneven_{marker.id}.xyz',index=False,header=False,sep=" ")
+
+                if os.path.exists(userRasterPath+f"uneven_{marker.id}.vrt"):
+                        os.remove(userRasterPath+f'uneven_{marker.id}.vrt')
+                
+                # f = open(userRasterPath+f'uneven_{marker.id}.vrt',"w")
+                # f.write(f'<OGRVRTDataSource><OGRVRTLayer name="uneven_{marker.id}"><SrcDataSource>{userRasterPath}uneven_{marker.id}.csv</SrcDataSource><GeometryType>wkbPoint</GeometryType><GeometryField encoding="PointFromColumns" x="x" y="y" z="height"/></OGRVRTLayer></OGRVRTDataSource>')
+                # f.close()
+
+
+                # r = gdal.Grid(userRasterPath+f"unevenInt_{marker.id}.tif",userRasterPath+f'uneven_{marker.id}.vrt',outputSRS = "EPSG:3857")
+                # r = None
+
+                dem = gdal.Translate(userRasterPath+f"unevenInt_{marker.id}.tif",userRasterPath+f'uneven_{marker.id}.xyz',outputSRS = "EPSG:3857")
+                dem = None
+
+
+
         def get_obstructions(self):
+                self.create_raster_beta()
                 marker = modelUserMarker.objects.get(id=self.userMarker.id)
                 path = f"userRasters/{marker.user.username}/"
+                transformer_4326 = Transformer.from_crs("epsg:3857", "epsg:4326")
+                transformer_mac = Transformer.from_crs("epsg:4326","epsg:3857")
+
+
+                points = modelPoint.objects.all()
+
                 # ds = gdal.Open(inputfile)
                 # print(ds)
                 # print(ds.GetRasterBand(1).ReadAsArray())
                 # ds=None
                 shapes=[]
                 for fs in modelFlatSurface.objects.filter(marker = marker):
-                        inputfile = path + f'cliped-{marker.id}_updated.tif'
+                        inputfile = path+f"unevenInt_{marker.id}.tif"
                         outputfile = path+ f'cliped-{marker.id}_viewshed_{fs.id}.tif'
                         workingDir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                        
+                        x,y = transformer_mac.transform(fs.center[1],fs.center[0])
                         # print('-ox',f'{fs.center[0]}','-oy',f'{fs.center[1]}')
-                        process = Popen(['gdal_viewshed','-b','1','-md','0','-ox',f'{fs.center[0]}','-oy',f'{fs.center[1]}',inputfile,outputfile], stdout=PIPE, stderr=PIPE,cwd=workingDir)
+                        process = Popen(['gdal_viewshed','-b','1','-md','0','-ox',f'{x}','-oy',f'{y}','-oz','5',inputfile,outputfile], stdout=PIPE, stderr=PIPE,cwd=workingDir)
                         stdout, stderr = process.communicate()
-                        # print(stdout, stderr)
-                        with rasterio.open(outputfile) as src:
-                                crs = src.crs
-                                src_band = src.read(1)
-                                # Keep track of unique pixel values in the input band
-                                unique_values = [255]
-                                # Polygonize with Rasterio. `shapes()` returns an iterable
-                                # of (geom, value) as tuples
-                                shapes = list(rasterio.features.shapes(src_band, transform=src.transform))
+                        print(stdout, stderr)
+                        print('lmao')
+
+                        shapes = []
+                        try:
+                                with rasterio.open(outputfile) as src:
+                                        crs = src.crs
+                                        src_band = src.read(1)
+                                        # Keep track of unique pixel values in the input band
+                                        unique_values = [255]
+                                        # Polygonize with Rasterio. `shapes()` returns an iterable
+                                        # of (geom, value) as tuples
+                                        shapes = list(rasterio.features.shapes(src_band, transform=src.transform))
+                        except:
+                                pass
                         # print(shapes)
                         # lol
                         fov = modelFOV.objects.get(flatSurface = fs)
                         obs = []
                         for s in shapes:
-                                if s[1] >= 250: #changes to >=
+                                if s[1] <= 250: #changes to >=
                                         poly = geos.Polygon(tuple(s[0]['coordinates'][0]))
-                                        # if poly.contains(marker.wsg48polygon):
-                                        #         obs.append(fs.id)
-                                        # if poly.intersects(fov.wsg48polygon):
-                                        #         try:
-                                        #                 clipped = poly.intersection(fov.wsg48polygon)
-                                        #                 # print(type(clipped))
-                                        #                 if clipped.geom_typeid == 6:
-                                        #                         for c in clipped.coords:
-                                        #                                 if len(c) > 3:
-                                        #                                         geom = geos.Polygon(c)
-                                        obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = poly )
+                                        poly = self.convert_mac_lat(poly,transformer_4326)
+                                        # poly = self.convert_pixal(poly,points)
+                                        print(poly)
+                                        # # if poly.contains(marker.wsg48polygon):
+                                        # #         obs.append(fs.id)
+                                        # # if poly.intersects(fov.wsg48polygon):
+                                        # #         try:
+                                        # #                 clipped = poly.intersection(fov.wsg48polygon)
+                                        # #                 # print(type(clipped))
+                                        # #                 if clipped.geom_typeid == 6:
+                                        # #                         for c in clipped.coords:
+                                        # #                                 if len(c) > 3:
+                                        # #                                         geom = geos.Polygon(c)
+                                        # # try:
+                                        # # print(marker.wsg48polygon.coords)
+                                        # # print(list(poly.exterior.coords))
+                                        # if poly.is_valid == False:
+                                        #         poly = poly.buffer(0)
+                                        # areabyclipped = self.userMarker.get_square_4326()
+                                        # clipped = poly.intersection(areabyclipped)
+                                        # print(list(clipped))
+                                        # for geom in clipped :
+                                        #         print(geom.geom_type)
+                                        #         if geom.geom_type == 'MultiPolygon':
+                                        #                 for c in geom.exterior.coords:
+                                        #                         geom = geos.Polygon(c)
+                                        #                         obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = geom )
+                                        #                         print('ok')
+                                        #         else:
+                                        #                 # if len(geom.exterior.coords) > 3:
+                                        #                 print(geom.exterior.coords)
+                                        obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = poly )  
+                                        # except:
+                                        #         pass
                                                 #         else:
                                                 #                 if clipped.intersects(marker.wsg48polygon):
                                                 #                                         obs.append(fs.id)
@@ -208,4 +364,5 @@ class hexaGrid():
 
                                                 # except:
                                                 #         pass
+                        # break
                 # modelFlatSurface.objects.filter(id__in=obs).delete()

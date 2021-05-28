@@ -808,27 +808,6 @@ $('#hotspotForm').submit(function(e){
         });
     });
 
-// function saveHotspot(){
-//     $('#hotspotlonlat').val(create_geojson(lnglat.lat,lnglat.lng))
-//     var formData = new FormData(document.querySelector('#hotspotForm'));
-//     console.log(formData);
-//     $.ajax({
-//         method:"POST",
-//         url: "{% url 'createhotspots' %}",
-//         enctype: 'multipart/form-data',
-//         processData: false,
-//         contentType: false,
-//         cache: false,
-//         data:formData,
-//         success:function(data){
-//             loadHostspotLayer()
-//         },
-//         error:function (jqXhr, textStatus, errorThrown) {
-//                 console.log('ERROR')
-//                 console.log(jqXhr)
-//             },
-//     })
-// }
 
 function createHotspot(){
    $(".hotspot-save-btn").show()
