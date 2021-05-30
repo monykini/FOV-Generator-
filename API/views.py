@@ -131,7 +131,7 @@ class ListUserLocations(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        return  modelUserMarker.objects.filter(user = user)
+        return  modelUserMarker.objects.filter(user = user,save_model = True)
 
 
 
