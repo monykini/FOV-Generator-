@@ -37,6 +37,7 @@
 }
 
 .sidebar-navigation li {
+  cursor: Pointer;
   background-color: #bbadd2;
   position: relative;
   display: inline-block;

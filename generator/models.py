@@ -82,4 +82,4 @@ class obstructions(models.Model):
 class MLbuildingData(models.Model):
     marker = models.ForeignKey(modelUserMarker,on_delete=models.CASCADE)
     height = models.FloatField()
-    geom = models.MultiPolygonField(srid=4326)
+    geom = models.PolygonField(srid=4326)

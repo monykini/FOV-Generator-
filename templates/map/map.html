@@ -19,6 +19,16 @@
 
 <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/alertifyjs@1.13.1/build/css/alertify.min.css"/>
 <script src="//cdn.jsdelivr.net/npm/alertifyjs@1.13.1/build/alertify.min.js"></script>
+
+
+<script src="https://unpkg.com/three@0.126.0/build/three.min.js"></script>
+<script src="https://unpkg.com/three@0.126.0/examples/js/loaders/GLTFLoader.js"></script>
+
+<script src="{% static 'js/Threebox.js' %}" type="text/javascript"></script>
+<script src="https://d3js.org/d3.v6.min.js"></script>
+
+
+
 <style>
 	body { margin: 0; padding: 0; }
 </style>
@@ -167,6 +177,11 @@
 
 
 {% block script %}
+
+
+
+
+
 <script>
 $.ajaxSetup({
     headers: { "X-CSRFToken": '{{csrf_token}}' ,'Authorization':"Token {{request.session.key}}"}
@@ -226,7 +241,8 @@ mapboxgl.accessToken = 'pk.eyJ1IjoibW9ueWtpbmkxMTEiLCJhIjoiY2tmeWE2ZmZzMjMzczJwc
         {% elif request.session.profile.Map_Style == 2 %}
         style: 'mapbox://styles/cosmoboiy/ckopwyuaf7mu818pl8if2b100',
         {% else %}
-        style: 'mapbox://styles/cosmoboiy/ck9yhwkz51gis1ilvb9foota9',
+        style: 'mapbox://styles/cosmoboiy/ckpctysff3q7x18mw97sirqi3',
+        // style: 'mapbox://styles/cosmoboiy/ck9yhwkz51gis1ilvb9foota9',
         {% endif %}
         // [73.0501, 33.7077],
         center: [-73.97049764067823,40.76466662545835],
@@ -237,6 +253,7 @@ mapboxgl.accessToken = 'pk.eyJ1IjoibW9ueWtpbmkxMTEiLCJhIjoiY2tmeWE2ZmZzMjMzczJwc
         antialias: true
     });
 
+var buildings = null;
 
 function showMarker(e){
     if (currentMarkers) {
@@ -267,6 +284,8 @@ function tile_request(){
             create_square(JSON.stringify(result.flatSurfaces).replace('\'','"'))
             create_hexas(JSON.stringify(result.Hexas).replace('\'','"'))
             hide('areaForm')
+            buildings = result.buildings
+            loadBuildings(buildings.features)
             alertify.success('Area calculated')
             if (caluclateMarker){
                 caluclateMarker.remove();
@@ -299,7 +318,18 @@ function tile_request(){
         marker:false,
         })
     );
-
+var tb = new Threebox(
+        map,
+        map.getCanvas().getContext('webgl'),
+        {
+            defaultLights: true,
+            enableSelectingFeatures: false, //change this to false to disable fill-extrusion features selection
+            enableSelectingObjects: false, //change this to false to disable 3D objects selection
+            enableTooltips: true, // change this to false to disable default tooltips on fill-extrusion and 3D models
+        }
+    ); 
+    
+    
 map.on('load', function () {
 
     // Insert the layer beneath any symbol layer.
@@ -321,48 +351,9 @@ map.on('load', function () {
             map.addImage('custom-marker', image);}
     )
 
-    // buildings()
-    
-    {% if request.session.profile.Map_Style != 2 %}
 
-    // map.addLayer(
-    //     {
-    //         'id': '3d-buildings',
-    //         'source': 'composite',
-    //         'source-layer': 'building',
-    //         'filter': ['==', 'extrude', 'true'],
-    //         'type': 'fill-extrusion',
-    //         'minzoom': 15,
-    //         'paint': {
-    //             'fill-extrusion-color': '#aaa',
 
-    //             // use an 'interpolate' expression to add a smooth transition effect to the
-    //             // buildings as the user zooms in
-    //             'fill-extrusion-height': [
-    //                 'interpolate',
-    //                 ['linear'],
-    //                 ['zoom'],
-    //                 15,
-    //                 0,
-    //                 15.05,
-    //                 ['get', 'height']
-    //             ],
-    //             'fill-extrusion-base': [
-    //                 'interpolate',
-    //                 ['linear'],
-    //                 ['zoom'],
-    //                 15,
-    //                 0,
-    //                 15.05,
-    //                 ['get', 'min_height']
-    //             ],
-    //             'fill-extrusion-opacity': 0.6
-    //         }
-    //     },
-    //     labelLayerId
-    // );
-
-    {% endif %}
+         
 
     // "mapbox-terrain-dem-v1": {
     // "type": "raster-dem",
@@ -377,7 +368,7 @@ map.on('load', function () {
 
 
     // // add the DEM source as a terrain layer with exaggerated height
-    map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1.2 });
+    // map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1.2 });
     
     // add a sky layer that will show when the map is highly pitched
     map.addLayer({
@@ -425,7 +416,9 @@ map.on('load', function () {
         })
 
     {% endif %}
-        $(".loader-wrapper").show()
+    console.log("{{locationID}}")
+
+    $(".loader-wrapper").show()
         $.ajax({
                 url:'{% url "retreivefov" id=1%}'.replace('1',"{{locationID}}"),
                 method:"GET",
@@ -439,6 +432,8 @@ map.on('load', function () {
                     name = data.name
                     create_square(JSON.stringify(data.flatSurfaces).replace('\'','"'))
                     create_hexas(JSON.stringify(data.Hexas).replace('\'','"'))
+                    buildings = data.buildings
+                    loadBuildings(buildings.features)
                     hide('areaForm')
                     if (caluclateMarker){
                         caluclateMarker.remove();
@@ -467,8 +462,11 @@ map.on('load', function () {
                 }
                 
             })
-    {% if locaitonID %}
 
+    {% if locaitonID %}
+    
+
+    
 
     {% endif %}
 
@@ -692,6 +690,11 @@ function clearLocationCalulation() {
 
         map.removeSource("obsSource");
     } 
+    if (map.getLayer("custom_layer")) {
+        tb.clear()
+        map.removeLayer("custom_layer");
+        
+    }
     caluclateMarker.remove();
     hexalayercheckbox = document.getElementById("hexagonsLayer")
     flatsurfacecheckbox = document.getElementById("flatSurfacesLayer")
@@ -909,6 +912,90 @@ function addFilter(){
 }
 
 
+let redMaterial = new THREE.MeshPhongMaterial({
+			color: 0x660000,
+			side: THREE.DoubleSide
+		});
+
+function addBuildings(data, info, height = 1) {
+
+    data.forEach((b) => {
+        let center = b.properties.center;
+        let s = tb.projectedUnitsPerMeter(center[1]);
+
+        let extrusion = tb.extrusion({
+            coordinates: b.geometry.coordinates,
+            geometryOptions: { curveSegments: 1, bevelEnabled: false, depth: b.layer.paint["fill-extrusion-height"] * s },
+            materials: redMaterial
+        });
+        // extrusion.addTooltip(b.properties.tooltip, true);
+        extrusion.setCoords([center[0], center[1], 0]);
+        tb.add(extrusion);
+
+    });
+}
+
+
+function loadBuildings(features){
+    if (map.getLayer("custom_layer")) {
+        tb.clear()
+        map.removeLayer("custom_layer");
+        // tb.removeLayer("custom_layer")
+    }
+    map.addLayer({
+				id: 'custom_layer',
+				type: 'custom',
+				renderingMode: '3d',
+				onAdd: function (map, mbxContext) {
+
+					//[jscastro] we add a star based on this example https://threejs.org/examples/?q=extrud#webgl_geometry_extrude_shapes
+					const points = [], numPts = 5;
+					for (let i = 0; i < numPts * 2; i++) {
+						const l = i % 2 == 1 ? 10 : 20;
+						const a = i / numPts * Math.PI;
+						points.push(new THREE.Vector2(Math.cos(a) * l, Math.sin(a) * l));
+					}
+					const material1 = new THREE.MeshLambertMaterial({ color: 0xb00000, wireframe: false });
+					const material2 = new THREE.MeshLambertMaterial({ color: 0xff8000, wireframe: false });
+					let star = tb.extrusion({
+						coordinates: points,
+						geometryOptions: { depth: 20, steps: 1, bevelEnabled: true, bevelThickness: 2, bevelSize: 4, bevelSegments: 1 },
+						anchor: 'center',
+						units: 'meters',
+						rotation: { x: 90, y: 0, z: 20 },
+						materials: [material1, material2]
+					});
+					star.addTooltip("A animated extruded star over Columbus Park", true);
+					star.setCoords([-73.97049764067823,40.76466662545835]);
+					star.set({ rotation: {x: 0, y: 0, z: 720}, duration: 20000 })
+					tb.add(star);
+
+					//[jscastro] we read a geoJson that is filled with 3 real features from the composite source
+					// d3.json('https://raw.githubusercontent.com/jscastro76/threebox/master/examples/geojson/extrusion.geojson').then(function (fc) {
+						// console.log(fc);
+						//then we create the extrusions based on the geoJson features
+						addBuildings(features);
+					// })
+
+				},
+
+				render: function (gl, matrix) {
+					tb.update();
+				}
+			});
+}
+
 </script>
+
+
+<script>
+
+
+
+
+</script>
+
+
+
 {% endblock %}
 

@@ -257,7 +257,7 @@ class hexaGrid():
                         b = buildings.filter(geom__intersects=p.wsg48Point)
                         if len(b) > 0:
                                 height = height + b[0].height
-                        temp = {"x":x,"y":y,"height":height}
+                        temp = {"x":x,"y":y,"height":height*10}
                         dict_points.append(temp)
                 df= pd.DataFrame(dict_points)
                 # print(df)
@@ -378,7 +378,7 @@ class hexaGrid():
                         outputfile = path+ f'cliped-{marker.id}_viewshed_{fs.id}.tif'
                         workingDir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
                         x,y = transformer_mac.transform(fs.center[1],fs.center[0])
-                        # print('-ox',f'{fs.center[0]}','-oy',f'{fs.center[1]}')
+                        
                         process = Popen(['gdal_viewshed','-b','1','-md','0','-ox',f'{x}','-oy',f'{y}','-oz','2',inputfile,outputfile], stdout=PIPE, stderr=PIPE,cwd=workingDir)
                         stdout, stderr = process.communicate()
                         print(stdout, stderr)
@@ -403,9 +403,9 @@ class hexaGrid():
                                         poly = self.convert_mac_lat(poly,transformer_4326)
                                         # poly = self.convert_pixal(poly,points)
 
-                                        if poly.contains(marker.wsg48point):
-                                                obs.append(fs.id)
-                                                break
+                                        # if poly.contains(marker.wsg48point):
+                                        #         obs.append(fs.id)
+                                        #         break
 
                                         if poly.intersects(fov.wsg48polygon):
                                                 try:
@@ -417,7 +417,7 @@ class hexaGrid():
                                                                                 geom = geos.Polygon(c)
                                                                                 obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = geom )  
                                                         else:
-                                                                obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = clipped  ) 
+                                                                obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = clipped ) 
                                                 except:
                                                         pass
                                         # # try:

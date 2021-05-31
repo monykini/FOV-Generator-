@@ -35,6 +35,7 @@ import numpy as np
 import threading
 import pandas as pd
 from GenClasses import buildingML 
+import random
 # import sys
 # import numpy
 
@@ -92,7 +93,11 @@ class tileGatherer():
         
 
         def get_buildings_ML(self,square_4326):
-                buildingML.get_tiles_ML(square_4326)
+                marker = modelUserMarker.objects.get(id=  self.markerID)
+                polygons = buildingML.get_tiles_ML(square_4326,self.converter.PixelXYToLatLongOSM)
+                for p in polygons:
+                        MLbuildingData.objects.create(marker=marker,height = random.randint(3,5) , geom = p)
+
 
 
         def check_files(self,total_tiles_matrix):

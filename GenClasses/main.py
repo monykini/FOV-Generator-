@@ -5,6 +5,7 @@ from generator import models
 from django.contrib.gis import geos
 import json
 import numpy as np
+import random
 
 
 class FOV_fucade():
@@ -69,17 +70,19 @@ class FOV_fucade():
             geojson = {'type': 'Feature',"properties":"",'geometry': geojson}
             hexagons["features"].append(geojson)
 
+        
         models.modelUserMarker.objects.filter(user= request.user,save_model=False).exclude(id=marker.id).delete()
 
 
         
             
+        buildings = self.buildingsGeoJson(marker)
 
 
-        return flatSurfaceGeojson , hexagons , marker.id
+        return flatSurfaceGeojson , hexagons , marker.id , buildings
 
 
-    def view_fov(request,request2,id,*args,**kwargs):
+    def view_fov(self,request2,id,*args,**kwargs):
         print(request2,'lol')
         marker  = models.modelUserMarker.objects.get(id=id)
         # marker.save()
@@ -117,19 +120,40 @@ class FOV_fucade():
             hexagons["features"].append(geojson)
 
         # models.modelUserMarker.objects.filter(user= request2.user,save_model=False).exclude(id=marker.id).delete()
+        buildings = self.buildingsGeoJson(marker)
 
-        return flatSurfaceGeojson , hexagons , marker.id
+        return flatSurfaceGeojson , hexagons , marker.id , buildings
     
 
 
-    def get_ti(self,latlon):
-        Marker = userMarker(latlon,200)
-        Marker.get_square()
-        area_array = tileGatherer(Marker)
-        area_array.conver_raster_tiles()
-        return area_array.areaArray
 
 
-    def test_fov(self):
-        fov = FOV()
-        fov.create_fov([0,10],[10,0])
+    def buildingsGeoJson(self,marker):
+        hexagons = {"type": "FeatureCollection","features": []}
+        for build in models.MLbuildingData.objects.filter(geom__intersects = marker.wsg48polygon , marker=marker ):
+            height = random.randint(3,20)
+            print(height)
+            geojson = json.loads(build.geom.geojson)
+            geojson = {'type': 'Feature',"properties":"",'geometry': geojson,"id":build.id ,"source": "composite", "sourceLayer": "building","state": {"hover": True,"select": True},"tooltip": None,"label": None}
+            center = build.geom.centroid
+            properties = {
+				"extrude": "true",
+				"iso_3166_1": "US",
+				"underground": "false",
+				"height": height,
+				"type": "building",
+				"min_height": 0,
+				"iso_3166_2": "US-NY",
+				"uuid": "802C4B41-D2F4-4A51-B2F7-18894CF2C6FE",
+				"center": [ center[0], center[1] ],
+				"tooltip": "The Louis J. Lefkowitz - State Office Building"
+			}
+
+            layer = {"id":"3d-buildings" , "type":"fill-extrusion" ,"source": "composite" ,"source-layer": "buildings" , "minzoom":12,"filter":["==","extrude","true"],"paint":{"fill-extrusion-color":{"r":0.5647058823529412 , "g":0.9333333333333333 , "b":0.5647058823529412 , "a":1},"fill-extrusion-height": height,"fill-extrusion-base":0,"fill-extrusion-opacity":0.9}}
+                        
+            geojson['properties'] = properties
+            geojson['layer'] = layer
+
+            hexagons["features"].append(geojson)
+
+        return hexagons
