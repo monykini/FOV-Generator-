@@ -17,7 +17,11 @@
           <h1 class="mb-4">See your <span class="font-weight-bold"> Travel </span> before time</h1>
           <p class="mb-4"> Analyze your view from far and see from<br>
            which points have higher visibility of your point of interest.</p>
+           {% if user.is_authenticated %}
+           <a href="{% url 'map' %}"><button class="btn btn-dark rounded-pill">Map</button></a>
+           {% else %}
            <a href="{% url 'registartion' %}"><button class="btn btn-dark rounded-pill">Get Account</button></a>
+           {% endif %}
         </div>
         <div class="col-lg-6 d-none d-lg-block wow zoomIn">
           <div class="img-place mobile-preview shadow floating-animate" id="model1" style="max-width: 380px;">
@@ -61,11 +65,11 @@
 <div class="position-realive bg-image main_section_rev" >
 
 <div class="page-section">
-  <div class="container">
+  <div class="container" id="about">
     <div class="row">
       <div class="col-lg-5 py-3">
-        <div class="img-place mobile-preview shadow wow zoomIn">
-          <img src="{% static 'img/app_preview_2.png'%}" alt="">
+        <div class="img-place shadow wow zoomIn" style="border-radius: 20px;">
+          <img src="{% static 'img/homepage model.png'%}" alt="">
         </div>
       </div>
       <div class="col-lg-6 py-3 mt-lg-5">
@@ -250,8 +254,13 @@
   </div>
 </div> -->
 
+<<<<<<< HEAD
 <div class="page-section main_section_last">
   <div class="container">
+=======
+<div class="page-section">
+  <div class="container" id="contact">
+>>>>>>> bc5ed4a57b51707461e5efec5ba9bc5645ff4e94
     <div class="row">
       <div class="col-lg-7 py-3 mb-5 mb-lg-0">
         <div class="img-place w-lg-75 wow zoomIn">

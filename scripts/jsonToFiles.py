@@ -1,7 +1,8 @@
 import json
 import os
 import mercantile
-from generator.models import modelPoint
+from generator.models import modelPoint, modelUserMarker
+from GenClasses.Shapes import userMarker
 from django.contrib.gis.gdal import GDALRaster
 import numpy as np
 from shapely.geometry import Point
@@ -14,6 +15,8 @@ import shapely
 from osgeo import gdal,ogr,osr
 import rasterio
 import rasterio.features
+from django.contrib.gis import geos
+import pandas as pd
 
 world_shp = f'buidlingsData/elevation/'
 input_name ='30n060e_20101117_gmted_max075.tif'
@@ -57,12 +60,142 @@ def create_fov(hexa_center , userPoint ,angle):
 
 
 def GetExtent():
-        with rasterio.open('userRasters/usama.khan/output.tif') as src:
-                crs = src.crs
-                src_band = src.read(1)
-                # Keep track of unique pixel values in the input band
-                unique_values = [255]
-                # Polygonize with Rasterio. `shapes()` returns an iterable
-                # of (geom, value) as tuples
-                shapes = list(rasterio.features.shapes(src_band, transform=src.transform))
-        print(shapes)
+        Marker = userMarker([-73.96822854362219,40.76470739485811][::-1],200)
+        print(tuple([tuple(i[::-1])  for i in list(Marker.get_square_4326().exterior.coords)]))
+        wsg48polygon = geos.Polygon(tuple([tuple(i[::-1])  for i in list(Marker.get_square_4326().exterior.coords)]))
+        points = modelPoint.objects.filter(wsg48Point__intersects = wsg48polygon)
+
+        # driver = gdal.GetDriverByName( 'GTiff' )
+        # dst_filename = 'tmp.tif'
+
+        cube = create_cube(points)
+        
+
+def create_cube(points):
+        x,y,z=[],[],[]
+        for data in points:
+            x.append(json.loads(data.world_pixal_xy)[0])
+            y.append(json.loads(data.world_pixal_xy)[1])
+            z.append(data.height)
+        min_total_x , min_total_y , min_total_z = min(x),min(y),int(max(z))
+        min_x,min_y,min_z,max_x,max_y,max_z=int(min(x)-min(x)),int(min(y)-min(y)),int(min(z)-min(z)),int(max(x)-min(x)),int(max(y)-min(y)),int(max(z)-min(z))
+        cube = np.full((max_x+1,max_y+1),-1)
+        cube[...] = -1
+        for data in points:
+            cube[int(json.loads(data.world_pixal_xy)[0]-min(x))][int(json.loads(data.world_pixal_xy)[1]-min(y))]=data.id
+
+        print(cube[0][0])
+        origin = [points.get(id =cube[0][0]).macPoint[0],points.get(id =cube[0][0]).macPoint[1]]
+        pixal_x = points.get(id =cube[0][0]).macPoint[0] - points.get(id =cube[0][1]).macPoint[0]
+        pixal_y = points.get(id =cube[0][0]).macPoint[1] - points.get(id =cube[1][0]).macPoint[1]
+
+        print(origin,pixal_x,pixal_y)
+        return cube
+
+
+def create_raster():
+        marker = modelUserMarker.objects.all()[0]
+        points = modelPoint.objects.filter(wsg48Point__intersects =marker.wsg48polygon)
+        lats = []
+        lons = []
+        for p in points:
+                lons.append(p.macPoint[1])
+                lats.append(p.macPoint[0])
+        min_lon,min_lat = min(lons),min(lats)
+        max_lon,max_lat = max(lons),max(lats)
+        total_lon = max_lon - min_lon
+        total_lat = max_lat - max_lat
+
+        dictCoods = []
+        for l in range(total_lon):
+                temp1 = []
+                for la in range(total_lat):
+                        temp.append([min_lon+(l*2.388657134),min_lat+(la*2.388657134)])
+                dictCoods.append(temp)
+       
+
+        dict_points=[]
+        for p in points:
+                temp = {"x":json.loads(p.world_pixal_xy)[0],"y":json.loads(p.world_pixal_xy)[1],"height":p.height}
+                dict_points.append(temp)
+        df= pd.DataFrame(dict_points)
+        df = df.sort_values(["x","y"],ascending=[True,False])
+        df.to_csv("df.xyz",index=False,header=None,sep=" ")
+
+
+
+def create_raster_beta():
+        marker = modelUserMarker.objects.all()[0]
+        points = modelPoint.objects.filter(wsg48Point__intersects =marker.wsg48polygon)
+        dict_points=[]
+        for p in points:
+                x = p.macPoint[1]
+                y = p.macPoint[0]
+                temp = {"x":x,"y":y,"height":p.height}
+                dict_points.append(temp)
+        df= pd.DataFrame(dict_points)
+        df = df.sort_values(["x","y"],ascending=[True,True])
+        previous_x = 0
+        previous_y = 0 
+        dict_points = []
+        req_interval  = 2.388657134
+        ys = []
+        for ID , row in df.iterrows():
+                if ID == 0 :
+                        previous_y = row["y"]
+                        y = row["y"]
+                else:
+                        difference_y = previous_y - row["y"]
+                        if difference_y - req_interval == 0:
+                                y = row["y"]
+                        else:
+                                gap = difference_y - req_interval
+                                y = row["y"] + gap
+                ys.append(y)
+        xs=[]
+        df = df.sort_values(["y","x"],ascending=[True,True])
+        for ID , row in df.iterrows():
+                if ID == 0 :
+                        previous_x = row["x"]
+                        x = row["x"]
+                else:
+                        difference_x = previous_x - row["x"]
+                        if difference_x - req_interval == 0:
+                                x = row["x"]
+                        else:
+                                gap = difference_x - req_interval
+                                x = row["x"] + gap
+                xs.append(y)
+
+        df['x'] = xs
+        df['y'] = ys
+
+        df.to_csv("uneven.csv",index=False,sep=" ")
+
+        if os.path.exists("dem.tif"):
+                os.remove('dem.tif')
+
+        dem = gdal.Translate("dem.tif","uneven.tif",outputSRS = "EPSG:3857")
+
+#         if os.path.exists("uneven.vrt"):
+#                 os.remove('uneven.vrt')
+        
+#         f = open("uneven.vrt","w")
+#         f.write("""<OGRVRTDataSource>
+#     <OGRVRTLayer name="uneven">
+#         <SrcDataSource>uneven.csv</SrcDataSource>
+#         <GeometryType>wkbPoint</GeometryType>
+#         <GeometryField encoding="PointFromColumns" x="x" y="y" z="height"/>
+#     </OGRVRTLayer>
+# </OGRVRTDataSource>""")
+#         f.close()
+
+        # r = gdal.Rasterize("uneven.tif","uneven.vrt",outputSRS = "EPSG:3857",xRes=2.388657131 , yRes = -2.388657131 , attribute = 'height' , noData = np.nan)
+        # # r = None
+
+        # r = gdal.Grid("unevenInt.tif","uneven.vrt",outputSRS = "EPSG:3857")
+        # r = None
+
+        
+        
+

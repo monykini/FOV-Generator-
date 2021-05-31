@@ -137,7 +137,6 @@ class Hexa():
 
         
     def beta_flatness(self):
-
         if len(self.points) < 10:
             return
             raise NotEnoughPoints

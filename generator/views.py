@@ -77,6 +77,7 @@ def save_Location(request,id):
         return JsonResponse({"status":"ok"})
     return JsonResponse({"status":"not"},status=500)
 
+
 def model(request):
     # Marker = userMarker([-73.96822854362219,40.76470739485811][::-1],200)
     # print(tuple([tuple(i[::-1])  for i in list(Marker.get_square_4326().exterior.coords)]))

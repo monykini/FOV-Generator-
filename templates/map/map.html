@@ -103,6 +103,7 @@
             <h5 class="mx-auto text-nowrap font-weight-bold mb-3"> Flat area Filters </h5>
             <div class="col-lg-12 ">
                 <table class="" id='flatSurfaceSumary'>
+                    <h6> Distance </h6>
                     <tr class="mb-2">
                         <td class="text-left font-weight-bold text-nowrap">greater than</td>
                         <td class="text-right font-weight-bold text-nowrap">less than</td>
@@ -113,6 +114,9 @@
                         <td class="text-right" id="fovAreaSummary"><input class="form-control" type="number" name="" id="distanceFieldLTE" style="width: 80px;
                             height: 25px;"> m</td>
                     </tr>
+                </table>
+                <table class="" id='flatSurfaceSumary'>
+                    <h6> Height </h6>
                     <tr class="mb-2">
                         <td class="text-left font-weight-bold text-nowrap">greater than</td>
                         <td class="text-right font-weight-bold text-nowrap">less than</td>
@@ -813,27 +817,6 @@ $('#hotspotForm').submit(function(e){
         });
     });
 
-// function saveHotspot(){
-//     $('#hotspotlonlat').val(create_geojson(lnglat.lat,lnglat.lng))
-//     var formData = new FormData(document.querySelector('#hotspotForm'));
-//     console.log(formData);
-//     $.ajax({
-//         method:"POST",
-//         url: "{% url 'createhotspots' %}",
-//         enctype: 'multipart/form-data',
-//         processData: false,
-//         contentType: false,
-//         cache: false,
-//         data:formData,
-//         success:function(data){
-//             loadHostspotLayer()
-//         },
-//         error:function (jqXhr, textStatus, errorThrown) {
-//                 console.log('ERROR')
-//                 console.log(jqXhr)
-//             },
-//     })
-// }
 
 function createHotspot(){
    $(".hotspot-save-btn").show()

@@ -17,7 +17,7 @@ from rest_framework.authtoken.models import Token
 from rest_framework.exceptions import APIException
 from rest_framework.parsers import JSONParser
 
-from .serializer import HotSpotSerializer,LocationSerializer
+from .serializer import HotSpotSerializer,LocationSerializer,ModelPointSerializer
 from users.models import Hotspots
 from generator.models import modelUserMarker
 from GenClasses.main import FOV_fucade
@@ -131,7 +131,10 @@ class ListUserLocations(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        return  modelUserMarker.objects.filter(user = user)
+        return  modelUserMarker.objects.filter(user = user,save_model = True)
 
 
 
+class ListModelPoints(generics.ListAPIView):
+    queryset = modelPoint.objects.all()
+    serializer_class = ModelPointSerializer

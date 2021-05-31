@@ -63,6 +63,7 @@ def settings_view(request):
             instance = Profile.objects.get(User = request.user)
             instance.ProfileImage.save(filename,image,save=True)
             instance.save()
+    request.session['profile'] = Profile.objects.filter(User = request.user).values()[0]
     request.session['key'] = Token.objects.get(user= request.user).key
     request.session['profile'] = Profile.objects.filter(User = request.user).values()[0]
     ProfileForm = UserProfileForm(initial = User.objects.filter(email = request.user.email).values()[0],prefix='profile')
