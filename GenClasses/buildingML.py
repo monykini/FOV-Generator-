@@ -70,7 +70,7 @@ def get_tiles_ML(square_4326,PixelXYToLatLongOSM):
 
 def get_pred(x,y,PixelXYToLatLongOSM):
         img = Image.open(requests.get(f'https://api.mapbox.com/v4/mapbox.satellite/18/{x}/{y}@2x.png?access_token=pk.eyJ1IjoiY29zbW9ib2l5IiwiYSI6ImNrNHN0dmwzZjBwMnkzbHFkM3pvaTBybDQifQ.pfeEvOIWJc60mdHtn8_uAQ', stream=True).raw)
-        im1 = img.save(f"{x},{y}.png")
+        # im1 = img.save(f"{x},{y}.png")
         img = asarray(img)
         print(img.shape,"shape")
         img = adjust_contrast_and_normalize_prod(img)
@@ -82,7 +82,7 @@ def get_pred(x,y,PixelXYToLatLongOSM):
 
         plotimgs = Image.fromarray(img)
         plotimgs = plotimgs.resize((512, 512))
-        plotimgs.save(f"{x},{y} pred.png")
+        # plotimgs.save(f"{x},{y} pred.png")
 
         img = np.array(plotimgs).astype(np.uint8)
 
