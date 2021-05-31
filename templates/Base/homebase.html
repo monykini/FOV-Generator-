@@ -27,7 +27,11 @@
 
   <link rel="stylesheet" href="{% static 'css/bootstrap.css' %}">
 
-  <link rel="stylesheet" href="{% static 'css/mobster.css' %}">
+  {% if request.session.profile.Color_Scheme == 'LM' %}
+    <link rel="stylesheet" href="{% static 'css/mobster-light.css' %}">
+  {% else %}
+    <link rel="stylesheet" href="{% static 'css/mobster.css' %}">
+  {% endif %}
 
   {% block files %}
 
@@ -49,6 +53,9 @@
         {% if user.is_authenticated %}
         <li class="nav-item">
           <a class="nav-link" href="{% url 'map' %}">Map</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="{% url 'settings' %}" >Settings</a>
         </li>
         {% else %}
         <li class="nav-item">

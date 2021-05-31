@@ -8,7 +8,7 @@
 
 {% block content %}
 
-<div class="page-hero-section bg-image hero-home-1" style="background: #2f2f2f ;">
+<div class="page-hero-section bg-image hero-home-1 main_section">
   <div class="hero-caption pt-5">
     <div class="container h-100">
       <div class="row align-items-center h-100">
@@ -21,7 +21,7 @@
         </div>
         <div class="col-lg-6 d-none d-lg-block wow zoomIn">
           <div class="img-place mobile-preview shadow floating-animate" id="model1" style="max-width: 380px;">
-            <!-- <img src="{% static 'img/app_preview_1.png'%}" alt=""> -->
+            
           </div>
         </div>
       </div>
@@ -58,7 +58,7 @@
 </div>  -->
 <!-- End clients -->
 
-<div class="position-realive bg-image" style="background: #2f2f2f ;">
+<div class="position-realive bg-image main_section_rev" >
 
 <div class="page-section">
   <div class="container">
@@ -250,7 +250,7 @@
   </div>
 </div> -->
 
-<div class="page-section">
+<div class="page-section main_section_last">
   <div class="container">
     <div class="row">
       <div class="col-lg-7 py-3 mb-5 mb-lg-0">
@@ -259,7 +259,7 @@
         </div>
       </div>
       <div class="col-lg-5 py-3">
-        <h1 class="wow fadeInUp">Need a help? <br>
+        <h1 class="wow fadeInUp">Need help? <br>
         Don't worry just contact us</h1>
 
         <form method="POST" class="mt-5">
@@ -289,7 +289,21 @@
  {% endblock %}
 
  {% block script %}
+
+
+ {% if request.session.profile.Color_Scheme == 'LM' %}
+    <script> 
+      var gColor = "#fffff";
+    </script>
+  {% else %}
+    <script >
+        var gColor = "#2f2f2f";
+    </script>
+  {% endif %}
+
+
  <script type="module">
+
 
   // Find the latest version by visiting https://unpkg.com/three.
   
@@ -307,7 +321,8 @@ import { RectAreaLightHelper } from 'https://unpkg.com/three@0.126.1/examples/js
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera( 75, 500 / 500, 0.1, 1000 );
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-scene.background = new THREE.Color( "#2f2f2f");
+
+scene.background = new THREE.Color(gColor);
 renderer.setSize( 500, 500 );
 $('#model1').append( renderer.domElement );
 const geometry = new THREE.SphereGeometry(20,25,25);

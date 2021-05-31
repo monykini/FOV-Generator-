@@ -22,6 +22,10 @@
 
 }
 
+#main_section{
+  background: #2f2f2f ;
+}
+
 body {
   font-family: 'Quicksand', Arial, Helvetica, sans-serif;
   font-size: 16px;

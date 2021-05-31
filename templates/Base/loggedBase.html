@@ -27,7 +27,13 @@
 
   <link rel="stylesheet" href="{% static 'css/bootstrap.css' %}">
 
-  <link rel="stylesheet" href="{% static 'css/mobster.css' %}">
+  {% if request.session.profile.Color_Scheme == 'LM' %}
+    <link rel="stylesheet" href="{% static 'css/mobster-light.css' %}">
+  {% else %}
+    <link rel="stylesheet" href="{% static 'css/mobster.css' %}">
+  {% endif %}
+
+ 
 
   {% block files %}
 

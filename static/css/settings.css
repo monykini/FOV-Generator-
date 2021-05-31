@@ -342,7 +342,7 @@ form .btn{
     transition: all .2s ease-in-out;
   }
   $this a i{
-  	margin-top: 3px;
+  	margin-top: 1px;
     top: 1px;
     display: inline-block;
   }
@@ -498,4 +498,8 @@ form .btn{
     padding: 7px !important;
     min-width: calc(30px + 10px + 30px + 10px + 30px + 10px + 30px + 15px);
   }
+}
+
+.container.hot-spot-container , #locations-table{
+  overflow: auto;
 }
