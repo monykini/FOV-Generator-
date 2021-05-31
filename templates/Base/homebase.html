@@ -27,11 +27,15 @@
 
   <link rel="stylesheet" href="{% static 'css/bootstrap.css' %}">
 
+  <script src="https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"></script>
+
   {% if request.session.profile.Color_Scheme == 'LM' %}
     <link rel="stylesheet" href="{% static 'css/mobster-light.css' %}">
   {% else %}
     <link rel="stylesheet" href="{% static 'css/mobster.css' %}">
   {% endif %}
+
+
 
   {% block files %}
 
@@ -175,6 +179,40 @@
   <script src="{% static 'vendor/wow/wow.min.js' %}"></script>
   
   <script src="{% static 'js/mobster.js' %}"></script>
+
+    <script type="text/javascript">
+    var fontSize =  parseInt('{{ request.session.profile.Font_Size }}') ;
+    var fontStyle =  parseInt('{{ request.session.profile.Font_Family }}') ;
+    var fam = "Arial";
+    $("*").css({
+      fontSize: fontSize
+    });
+    if(fontStyle == 1){
+        fam = "fantasy"
+    }else if(fontStyle == 2){
+        fam = "system-ui"
+    }else if(fontStyle == 3){
+        fam = "cursive"
+    }else if(fontStyle == 4){
+        fam = "Helvatica"
+    }
+
+    if(fam == "Arial" || fam == "Helvatica"){
+        WebFont.load({
+            google: {
+              families: ['Droid Sans', 'Droid Serif']
+            }
+        });
+    }
+    $("*").css({
+      fontFamily: fontStyle
+    });
+    $("i").css({
+      fontFamily: 'FontAwesome'
+    });
+
+  </script>
+
   {% block script %}
   {% endblock %}
 </body>

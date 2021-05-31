@@ -80,11 +80,12 @@ class RetrieveHotSpot(generics.RetrieveAPIView):
 class UpdateHotSpot(generics.UpdateAPIView):
     serializer_class = HotSpotSerializer
 
+
     def update(self, request,id=None):
         user = self.request.user
         queryset =  Hotspots.objects.filter(User = user)
         spot = get_object_or_404(queryset, id=id)
-        serializer = HotSpotSerializer(spot , data = request.POST,partial = True,context = {"request": self.request})
+        serializer = HotSpotSerializer(spot , data = request.POST,partial = True,context = {"request": self.request , "files":self.request.FILES})
         serializer.is_valid(raise_exception=True)
         sot = serializer.save()
         return Response(serializer.data)

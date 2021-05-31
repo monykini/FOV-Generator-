@@ -7,9 +7,9 @@ from django.utils import timezone
 
 import os
 
-SIZE_CHOICES = ((0,'8px') , (1,'9px') ,(2,'10px') ,(3,'11px') )
+SIZE_CHOICES = ((14,'14px') , (16,'16px') ,(18,'18px') ,(20,'20px') )
 COLOR_CHOICES = (('LM','Light Mode') , ('DM','Dark Mode') ,('CBA','Color Blind Assist',))
-FONT_CHOICES = ((0,'Sans') , (1,'Caliber') ,(2,'Romans') )
+FONT_CHOICES = ((0,'arial') , (1,'fantasy') ,(2,'system-ui'),(3,'cursive'),(4,'Helvatica') )
 MAP_CHOICES = ((0,'Street view') , (1,'Navigation View') ,(2,'Satellite View') )
 
 

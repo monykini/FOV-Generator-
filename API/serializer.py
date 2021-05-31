@@ -55,10 +55,10 @@ class HotSpotSerializer(GeoFeatureModelSerializer):
         return order
 
     def update(self,instance, validated_data):
-        print(validated_data,'lmao')
+        print(self.context,'lmao')
         instance.Name = validated_data.get('Name',instance.Name)
         instance.Location = validated_data.get('Location', instance.Location)
-        instance.SpotImage = validated_data.get('SpotImage', instance.SpotImage)
+        instance.SpotImage = self.context['files'].get('SpotImage', instance.SpotImage)
         instance.save()
         return instance
 
