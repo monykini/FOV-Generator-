@@ -407,19 +407,19 @@ class hexaGrid():
                                         #         obs.append(fs.id)
                                         #         break
 
-                                        if poly.intersects(fov.wsg48polygon):
-                                                try:
-                                                        clipped = fov.wsg48polygon.intersection(poly)
-                                                        # print(type(clipped))
-                                                        if clipped.geom_typeid == 6:
-                                                                for c in clipped.coords:
-                                                                        if len(c) > 3:
-                                                                                geom = geos.Polygon(c)
-                                                                                obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = geom )  
-                                                        else:
-                                                                obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = clipped ) 
-                                                except:
-                                                        pass
+                                        # if poly.intersects(fov.wsg48polygon):
+                                        #         try:
+                                        #                 clipped = fov.wsg48polygon.intersection(poly)
+                                        #                 # print(type(clipped))
+                                        #                 if clipped.geom_typeid == 6:
+                                        #                         for c in clipped.coords:
+                                        #                                 if len(c) > 3:
+                                        #                                         geom = geos.Polygon(c)
+                                        #                                         obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = geom )  
+                                        #                 else:
+                                        obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = poly ) 
+                                                # except:
+                                                #         pass
                                         # # try:
                                         # # print(marker.wsg48polygon.coords)
                                         # # print(list(poly.exterior.coords))

@@ -9,17 +9,17 @@
 }
 .calculate,.clearmap,.hotspot-save-btn{
 position: fixed;
-top: 5.6rem;
-left: 0;
+bottom: 3vh;
+left: 40vw;
 z-index: 99;
 }
 .hotspot-cross{
-    left: 10rem;
+    left: 50vw;
 }
 .hotspot-btn{
 position: fixed;
-top: 9rem;
-left: 0;
+bottom: 3vh;
+left: 50vw;
 z-index: 99;
 }
 
@@ -29,8 +29,8 @@ z-index: 99;
 .savehotspot,.saveLocation{
 
     position: fixed;
-    top: 9rem;
-    left: 0;
+    bottom: 3vh;
+    left: 50vw;
     z-index: 99;
 }
     

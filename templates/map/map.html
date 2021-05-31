@@ -13,6 +13,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js" integrity="sha512-qTXRIMyZIFb8iQcfjXWCO8+M5Tbc38Qi5WzdPOYZHIlZpzBHG3L3by84BBBOiRGiEb7KKtAOAs5qYdUiZiQNNQ==" crossorigin="anonymous"></script>
 {% if request.session.profile.Color_Scheme == 'LM' %}
     <link rel="stylesheet" href="{% static 'css/map-light.css' %}">
+{% elif request.session.profile.Color_Scheme == 'CBA' %}
+    <link rel="stylesheet" href="{% static 'css/map-blind.css' %}">
 {% else %}
     <link rel="stylesheet" href="{% static 'css/map.css' %}">
 {% endif %}
@@ -368,7 +370,7 @@ map.on('load', function () {
 
 
     // // add the DEM source as a terrain layer with exaggerated height
-    // map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1.2 });
+    map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1.2 });
     
     // add a sky layer that will show when the map is highly pitched
     map.addLayer({

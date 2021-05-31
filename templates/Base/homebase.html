@@ -30,7 +30,9 @@
   <script src="https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"></script>
 
   {% if request.session.profile.Color_Scheme == 'LM' %}
-    <link rel="stylesheet" href="{% static 'css/mobster-light.css' %}">
+  <link rel="stylesheet" href="{% static 'css/mobster-light.css' %}">
+  {% elif request.session.profile.Color_Scheme == 'CBA' %}
+    <link rel="stylesheet" href="{% static 'css/mobster-blind.css' %}">
   {% else %}
     <link rel="stylesheet" href="{% static 'css/mobster.css' %}">
   {% endif %}

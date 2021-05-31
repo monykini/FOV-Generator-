@@ -300,6 +300,11 @@
     <script> 
       var gColor = "#fffff";
     </script>
+ {% elif request.session.profile.Color_Scheme == 'CBA' %}
+  <script> 
+    var gColor = "#b8b8b8";
+  </script>
+
   {% else %}
     <script >
         var gColor = "#2f2f2f";

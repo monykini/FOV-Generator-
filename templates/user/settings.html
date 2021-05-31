@@ -13,6 +13,8 @@
 <link href="{% static 'css/settings.css' %}" rel="stylesheet" />
 {% if request.session.profile.Color_Scheme == 'LM' %}
 	<link href="{% static 'css/settings-light.css' %}" rel="stylesheet" />
+{% elif request.session.profile.Color_Scheme == 'CBA' %}	
+	<link href="{% static 'css/settings-blind.css' %}" rel="stylesheet" />
 {% else %}
 	<link href="{% static 'css/settings.css' %}" rel="stylesheet" />
 {% endif %}

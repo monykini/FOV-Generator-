@@ -102,35 +102,34 @@ z-index: 99;
 
 .mapboxgl-ctrl-top-right .mapboxgl-ctrl {
     background-color: #2f2f2f;
-    color: #bbadd2;
+    color: #ffffff;
     box-shadow: 5px 5px 20px;
 
 }
 
 .neonButton , .neonButton:focus{
-    background: #2f2f2f;
-    color: #bbadd2;
-    border-color: #bbadd2;
-    box-shadow: 0 0 0 0 rgb(38 143 255 / 50%);
+    background: #ffffff;
+    color: #2f2f2f;
+    border-color: #ffffffba !important;
 }
 
 .neonButton:hover{
-    background: #bbadd2;
+    background: #ffffff;
     color: #2f2f2f;
-    border-color: #bbadd2;
+    border-color: #ffffff;
 }
 .neonButton:not(:disabled):not(.disabled):active{
-    background: #bbadd2;
+    background: #ffffff;
     color: #2f2f2f;
     border-color: #2f2f2f;
     box-shadow:None;
 }
 .wrapper{
-    background-color: #2f2f2f;
+    background-color: #ffffff;
     padding: 10px ;
     box-shadow: 5px 5px 20px;
     border-radius: 5px;
-    color: #bbadd2;
+    color: #2f2f2f;
 }
 
 .areaForm , .hotspotform,.hotspotForm{
@@ -203,4 +202,43 @@ z-index: 99;
 .navbar-expand-lg.navbar-floating {
     top: 0px;
 }
+}
+
+.mapboxgl-ctrl-geocoder--input {
+        background-color: white !important;
+}
+
+::placeholder {
+  color: white !important;
+  opacity: 1; /* Firefox */
+}
+
+:-ms-input-placeholder { /* Internet Explorer 10-11 */
+ color: white !important;
+}
+
+::-ms-input-placeholder { /* Microsoft Edge */
+ color: white !important;
+}
+
+.mapboxgl-ctrl-geocoder--input::placeholder {
+  color: #3c3c3c !important;
+  opacity: 1; /* Firefox */
+}
+
+.mapboxgl-ctrl-geocoder--input:-ms-input-placeholder { /* Internet Explorer 10-11 */
+ color: #3c3c3c!important;
+}
+
+.mapboxgl-ctrl-geocoder--input::-ms-input-placeholder { /* Microsoft Edge */
+ color: #3c3c3c!important;
+}
+
+.neonButton:hover {
+    background: #3c3c3c;
+    color: #ffffff;
+}
+
+input[type = 'file']{
+    color:black;
 }
