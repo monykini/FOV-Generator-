@@ -361,15 +361,18 @@ class FOV():
     def __init__(self):
         self.visibility = None
         self.view_area = None
+        self.start = None
         self.area = 0
         self.hexas = []
         self.angle = 45
         self.height = 0
         self.obstrcution = 0
         self.sign=0
+        self.center = False
     
 
     def create_fov(self , hexa_center , userPoint):
+        self.start = hexa_center
         raw_hight_vector = [hexa_center[0]-userPoint[0] ,hexa_center[1]-userPoint[1]]
 
         height_vector = [abs(hexa_center[0]-userPoint[0]) ,abs(hexa_center[1]-userPoint[1])]

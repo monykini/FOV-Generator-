@@ -131,7 +131,7 @@ class FOV_fucade():
     def buildingsGeoJson(self,marker):
         hexagons = {"type": "FeatureCollection","features": []}
         for build in models.MLbuildingData.objects.filter(geom__intersects = marker.wsg48polygon , marker=marker ):
-            height = random.randint(3,20)
+            height = random.randint(30,50)
             print(height)
             geojson = json.loads(build.geom.geojson)
             geojson = {'type': 'Feature',"properties":"",'geometry': geojson,"id":build.id ,"source": "composite", "sourceLayer": "building","state": {"hover": True,"select": True},"tooltip": None,"label": None}

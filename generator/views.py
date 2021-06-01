@@ -52,7 +52,8 @@ def genratorLocation(request,locationID=None):
         data2 , hexas , markerID , buildings = fucade.create_FOV(request,latlon,float(area))
         t2 = time.perf_counter()
         print(f"{t2-t1} , seconds end")
-        return JsonResponse({'flatSurfaces':data2 , 'Hexas':hexas , "id":markerID })
+        return JsonResponse({'flatSurfaces':data2 , 'Hexas':hexas , "id":markerID ,"buildings":buildings})
+
     if locationID == None:
         return render(request,'map/map.html')
     else:

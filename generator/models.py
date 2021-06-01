@@ -64,6 +64,8 @@ class modelFOV(models.Model):
     angel = models.FloatField(default=45)
     height = models.FloatField()
     sign=models.IntegerField(default=0)
+    start = models.PointField(null = True , default=None)
+    center = models.BooleanField(default=False)
 
 class modelHexas(models.Model):
     marker = models.ForeignKey(modelUserMarker,on_delete=models.CASCADE)

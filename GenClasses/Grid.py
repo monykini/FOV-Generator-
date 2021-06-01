@@ -19,6 +19,7 @@ from multiprocessing import Pool
 import threading
 import traceback
 import numpy as np
+import shapely
 
 class hexaGrid():
         """
@@ -146,16 +147,17 @@ class hexaGrid():
 
                 total_hexas = len(self.hexas)
                 print(total_hexas)
-                division = math.ceil(total_hexas/8)
+                division = math.ceil(total_hexas/4)
                 pools=[]
 
-                for p in range(8):
+                for p in range(4):
                         pools.append(threading.Thread(target = self.flat_pool_proces, args=(p*division,(p+1)*division,transformer_4326,transformer_mac,marker)))
                         pools[p].start()
-                        print('ok')
+                        
 
-                for p in range(8):
+                for p in range(4):
                         pools[p].join()
+                        print('ok')
 
 
                 # for hexa in self.hexas:
@@ -189,6 +191,8 @@ class hexaGrid():
         
         
         def flat_pool_proces(self,start,end,transformer_4326,transformer_mac,marker):
+                transformer_4326 = Transformer.from_crs("epsg:3857", "epsg:4326")
+                transformer_mac = Transformer.from_crs("epsg:4326","epsg:3857")
                 try:
                         for hexa in self.hexas[start:end]:
                                 i=0 
@@ -198,8 +202,17 @@ class hexaGrid():
                                         flat_Surface.get_area_flat_surface()
                                         # print("area" ,flat_Surface.area )
                                         if flat_Surface.area >= self.CoverageArea:
+                                                fovs = []
+                                                j=0
+                                                for endpoint in flat_Surface.get_sides_mac():
+                                                        fovs.append(FOV())
+                                                        fovs[j].create_fov(endpoint  , self.userMarker.get_latlonMac())
+                                                        j+=1
                                                 fov  = FOV()
+                                                fov.center = True
                                                 fov.create_fov(flat_Surface.center  , self.userMarker.get_latlonMac())
+                                                fovs.append(fov)
+                                                print(len(fovs),"fovs created")
                                                 if (fov.height >= 100 and fov.height <=4000) :
                                                         # fov.get_obstruction(flat_Surface.insidePoints,flat_Surface.modeHeight,self.userMarker)
                                                         flat_Surface.fov = fov
@@ -209,10 +222,12 @@ class hexaGrid():
                                                         distance = Point(flat_Surface.center[0],flat_Surface.center[1]).distance(Point(marker.macpoint[1],marker.macpoint[0]))
                                                         FS = modelFlatSurface(marker = marker ,wsg48polygon =geos.Polygon(tuple(wsg48polygon.exterior.coords)) ,macpolygon= geos.Polygon(tuple(macpolygon.exterior.coords)) , avgHeight = flat_Surface.modeHeight,area = flat_Surface.area,center = geos.Point(tuple(flat_Surface.center_wsg)[::-1]),distance=distance)
                                                         FS.save()
-                                                        wsg48polygon = Polygon(tuple([tuple(li[::-1]) for li in fov.get_fov_4326()]))
-                                                        macpolygon = Polygon(tuple([tuple(li[::-1]) for li in fov.view_area]))
-                                                        F_O_V = modelFOV(flatSurface=FS,wsg48polygon=geos.Polygon(tuple(wsg48polygon.exterior.coords)),macpolygon=geos.Polygon(tuple(macpolygon.exterior.coords)),height=fov.height,sign=fov.sign)
-                                                        F_O_V.save()
+                                                        for fov in fovs:
+                                                                wsg48polygon = Polygon(tuple([tuple(li[::-1]) for li in fov.get_fov_4326()]))
+                                                                macpolygon = Polygon(tuple([tuple(li[::-1]) for li in fov.view_area]))
+                                                                # startx,starty = transformer_4326.transform(fov.start[0],fov.start[1])
+                                                                F_O_V = modelFOV(flatSurface=FS,wsg48polygon=geos.Polygon(tuple(wsg48polygon.exterior.coords)),macpolygon=geos.Polygon(tuple(macpolygon.exterior.coords)),height=fov.height,sign=fov.sign,start = geos.Point(fov.start[0],fov.start[1]),center = fov.center)
+                                                                F_O_V.save()
                                                         # get_obstruction(F_O_V,self.userMarker,FS,self.converter,transformer_mac,transformer_4326)
                                                         # self.flat_surfaces.append(flat_Surface)
                                         i+=1
@@ -375,78 +390,64 @@ class hexaGrid():
                 obs = []
                 for fs in modelFlatSurface.objects.filter(marker = marker):
                         inputfile = path+f"unevenInt_{marker.id}.tif"
-                        outputfile = path+ f'cliped-{marker.id}_viewshed_{fs.id}.tif'
-                        workingDir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                        x,y = transformer_mac.transform(fs.center[1],fs.center[0])
-                        
-                        process = Popen(['gdal_viewshed','-b','1','-md','0','-ox',f'{x}','-oy',f'{y}','-oz','2',inputfile,outputfile], stdout=PIPE, stderr=PIPE,cwd=workingDir)
-                        stdout, stderr = process.communicate()
-                        print(stdout, stderr)
+                        fovs = []
+                        polys = []
+                        print(len(modelFOV.objects.filter(flatSurface = fs)),"fovs saved")
+                        for fov in modelFOV.objects.filter(flatSurface = fs):
+                                outputfile = path+ f'cliped-{marker.id}_viewshed_{fs.id}_{fov.id}.tif'
+                                workingDir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                                # x,y = transformer_mac.transform(fs.center[1],fs.center[0])
+                                x,y = fov.start[0],fov.start[1]
+                                print(x,y)
+                                
+                                process = Popen(['gdal_viewshed','-b','1','-md','0','-ox',f'{x}','-oy',f'{y}','-oz','2',inputfile,outputfile], stdout=PIPE, stderr=PIPE,cwd=workingDir)
+                                stdout, stderr = process.communicate()
+                                print(stdout, stderr)
 
-                        shapes = []
-                        try:
-                                with rasterio.open(outputfile) as src:
-                                        crs = src.crs
-                                        src_band = src.read(1)
-                                        sieved = sieve(src_band, 5, out=np.zeros(src.shape, src.dtypes[0]),connectivity = 8)
-                                        unique_values = [255]
-                                        shapes = list(rasterio.features.shapes(sieved, transform=src.transform))
-                        except Exception as e:
-                                obs.append(fs.id)
-                                pass
-                        # print(shapes)
-                        # lol
-                        fov = modelFOV.objects.get(flatSurface = fs)
-                        for s in shapes:
-                                if s[1] <= 250: #changes to >=
-                                        poly = geos.Polygon(tuple(s[0]['coordinates'][0]))
-                                        poly = self.convert_mac_lat(poly,transformer_4326)
-                                        # poly = self.convert_pixal(poly,points)
+                                shapes = []
+                                try:
+                                        with rasterio.open(outputfile) as src:
+                                                crs = src.crs
+                                                src_band = src.read(1)
+                                                sieved = sieve(src_band, 5, out=np.zeros(src.shape, src.dtypes[0]),connectivity = 8)
+                                                unique_values = [255]
+                                                shapes = list(rasterio.features.shapes(sieved, transform=src.transform))
+                                except Exception as e:
+                                        # obs.append(fs.id)
+                                        continue
+                                # print(shapes)
+                                # lol
+                                # fov = modelFOV.objects.get(flatSurface = fs)
+                                for s in shapes:
+                                        if s[1] >= 250:
+                                                poly = geos.Polygon(tuple(s[0]['coordinates'][0]))
+                                                poly = self.convert_mac_lat(poly,transformer_4326)
+                                                poly = Polygon(poly.coords[0])
+                                                polys.append(poly)
+                        if len(polys) > 2:
+                                polys2 = []
+                                for p in polys:
+                                        polys2.append(p.buffer(0))
+                                shapes = shapely.ops.unary_union(polys2)   
+                                
+                                if shapes.geom_type == 'Polygon':
+                                        poly = tuple(shapes.exterior.coords)
+                                        poly = geos.Polygon(poly)
+                                        obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = poly)
+                                else:
+                                        for s in shapes:
+                                                # if s[1] >= 250: #changes to >=
+                                                poly = tuple(s.exterior.coords)
+                                                poly = geos.Polygon(poly)
+                                                obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = poly )
+                        elif len(polys) == 1:
+                                poly = geos.Polygon(tuple(polys[0].exterior.coords))
+                                obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = poly )
+                        else:
+                                print(polys)
 
-                                        # if poly.contains(marker.wsg48point):
-                                        #         obs.append(fs.id)
-                                        #         break
 
-                                        # if poly.intersects(fov.wsg48polygon):
-                                        #         try:
-                                        #                 clipped = fov.wsg48polygon.intersection(poly)
-                                        #                 # print(type(clipped))
-                                        #                 if clipped.geom_typeid == 6:
-                                        #                         for c in clipped.coords:
-                                        #                                 if len(c) > 3:
-                                        #                                         geom = geos.Polygon(c)
-                                        #                                         obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = geom )  
-                                        #                 else:
-                                        obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = poly ) 
-                                                # except:
-                                                #         pass
-                                        # # try:
-                                        # # print(marker.wsg48polygon.coords)
-                                        # # print(list(poly.exterior.coords))
-                                        # if poly.is_valid == False:
-                                        #         poly = poly.buffer(0)
-                                        # areabyclipped = self.userMarker.get_square_4326()
-                                        # clipped = poly.intersection(areabyclipped)
-                                        # print(list(clipped))
-                                        # for geom in clipped :
-                                        #         print(geom.geom_type)
-                                        #         if geom.geom_type == 'MultiPolygon':
-                                        #                 for c in geom.exterior.coords:
-                                        #                         geom = geos.Polygon(c)
-                                        #                         obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = geom )
-                                        #                         print('ok')
-                                        #         else:
-                                        #                 # if len(geom.exterior.coords) > 3:
-                                        #                 print(geom.exterior.coords)
-                                        # obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = poly )  
-                                        # except:
-                                        #         pass
-                                                #         else:
-                                                #                 if clipped.intersects(marker.wsg48polygon):
-                                                #                                         obs.append(fs.id)
-                                                #                 obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = clipped )
+                        modelFOV.objects.filter(id__in=fovs).delete()
 
-                                                # except:
-                                                #         pass
-                        # break
                 modelFlatSurface.objects.filter(id__in=obs).delete()
+                modelFOV.objects.filter(center=False).delete()
