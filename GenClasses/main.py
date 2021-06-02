@@ -83,7 +83,6 @@ class FOV_fucade():
 
 
     def view_fov(self,request2,id,*args,**kwargs):
-        print(request2,'lol')
         marker  = models.modelUserMarker.objects.get(id=id)
         # marker.save()
         
@@ -132,7 +131,6 @@ class FOV_fucade():
         hexagons = {"type": "FeatureCollection","features": []}
         for build in models.MLbuildingData.objects.filter(geom__intersects = marker.wsg48polygon , marker=marker ):
             height = random.randint(30,50)
-            print(height)
             geojson = json.loads(build.geom.geojson)
             geojson = {'type': 'Feature',"properties":"",'geometry': geojson,"id":build.id ,"source": "composite", "sourceLayer": "building","state": {"hover": True,"select": True},"tooltip": None,"label": None}
             center = build.geom.centroid
@@ -149,7 +147,7 @@ class FOV_fucade():
 				"tooltip": "The Louis J. Lefkowitz - State Office Building"
 			}
 
-            layer = {"id":"3d-buildings" , "type":"fill-extrusion" ,"source": "composite" ,"source-layer": "buildings" , "minzoom":12,"filter":["==","extrude","true"],"paint":{"fill-extrusion-color":{"r":0.5647058823529412 , "g":0.9333333333333333 , "b":0.5647058823529412 , "a":1},"fill-extrusion-height": height,"fill-extrusion-base":0,"fill-extrusion-opacity":0.9}}
+            layer = {"id":"3d-buildings" , "type":"fill-extrusion" ,"source": "composite" ,"source-layer": "buildings" , "minzoom":12,"filter":["==","extrude","true"],"paint":{"fill-extrusion-color":{"r":0.5647058823529412 , "g":0.9333333333333333 , "b":0.5647058823529412 , "a":0.5},"fill-extrusion-height": height,"fill-extrusion-base":0,"fill-extrusion-opacity":0.9}}
                         
             geojson['properties'] = properties
             geojson['layer'] = layer

@@ -43,13 +43,13 @@ class flatSurface():
         self.hexa=hexa
         self.fov = None
     
-    def get_area_flat_surface(self):
+    def get_area_flat_surface(self,transformer):
             self.sides = [ i.mac_latlon for i in self.points ]
             polygon = shapely.geometry.Polygon(self.sides)
             self.area = polygon.area
             self.center= list(polygon.centroid.coords)
             self.center = list(self.center[0])
-            transformer = Transformer.from_crs("epsg:3857" , "epsg:4326")
+            # transformer = Transformer.from_crs("epsg:3857" , "epsg:4326")
             x,y = transformer.transform(self.center[0],self.center[1])
             self.center_wsg =[x,y]
             heights=[]
@@ -328,16 +328,22 @@ class userMarker():
         else:
             return self.square
     
-    def get_latlonMac(self):
-        transformer = Transformer.from_crs("epsg:4326", "epsg:3857")
+    def get_latlonMac(self , *args,**kwargs):
+        if kwargs.get('transformer',None) != None:
+            transformer = kwargs.get('transformer',None)
+        else:
+            transformer = Transformer.from_crs("epsg:4326", "epsg:3857")
         lat,lon = transformer.transform(self.latlon[0], self.latlon[1])
         return [lat,lon]
 
-    def get_square_4326(self):
+    def get_square_4326(self, *args,**kwargs):
         if self.square == 0 :
             self.get_square()
-        
-        transformer = Transformer.from_crs("epsg:3857" , "epsg:4326")
+
+        if kwargs.get('transformer',None) != None:
+            transformer = kwargs.get('transformer',None)
+        else:
+            transformer = Transformer.from_crs("epsg:3857" , "epsg:4326")
         square_4326 = []
         for p in list(self.square.exterior.coords):
             x,y = transformer.transform(p[0], p[1])
@@ -402,7 +408,7 @@ class FOV():
         self.view_area = vertices
         polygon = shapely.geometry.Polygon(self.view_area)
         self.area = polygon.area
-        self.get_fov_4326()
+        # self.get_fov_4326(transformer)
 
 
     def create_cube(self,points,checkNmber=None):
@@ -422,11 +428,11 @@ class FOV():
         return cube , min_total_x , min_total_y , min_total_z ,max_x,max_y,max_z
 
 
-    def get_fov_4326(self):
+    def get_fov_4326(self,transformer):
         if self.view_area == None :
             return None
         
-        transformer = Transformer.from_crs("epsg:3857" , "epsg:4326")
+        # transformer = Transformer.from_crs("epsg:3857" , "epsg:4326")
         square_4326 = []
         for p in range(len(self.view_area)):
             x,y = transformer.transform(self.view_area[p][0], self.view_area[p][1])

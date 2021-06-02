@@ -115,29 +115,30 @@
             <h5 class="mx-auto text-nowrap font-weight-bold mb-3"> Flat area Filters </h5>
             <div class="col-lg-12 ">
                 <table class="" id='flatSurfaceSumary'>
-                    <h6> Distance </h6>
+                    <h6 class="mx-auto text-nowrap font-weight-bold"> Distance </h6>
                     <tr class="mb-2">
-                        <td class="text-left font-weight-bold text-nowrap">greater than</td>
-                        <td class="text-right font-weight-bold text-nowrap">less than</td>
+                        <td class="text-left font-weight-bold text-nowrap">greater than </td>
+                        <td class="text-right font-weight-bold text-nowrap">less than </td>
                     </tr>
                     <tr class="mb-2">
                         <td class="text-left"><input type="number" class="form-control" name="" id="distanceFieldGTE" style="width: 80px;
-                            height: 25px;"> m</td>
-                        <td class="text-right" id="fovAreaSummary"><input class="form-control" type="number" name="" id="distanceFieldLTE" style="width: 80px;
-                            height: 25px;"> m</td>
+                            height: 25px;"></td>
+                        <td class="text-left" id="fovAreaSummary"><input class="form-control" type="number" name="" id="distanceFieldLTE" style="width: 80px;
+                            height: 25px;"></td>
                     </tr>
                 </table>
+                <hr>
                 <table class="" id='flatSurfaceSumary'>
-                    <h6> Height </h6>
+                    <h6 class="mx-auto text-nowrap font-weight-bold" > Height </h6>
                     <tr class="mb-2">
-                        <td class="text-left font-weight-bold text-nowrap">greater than</td>
-                        <td class="text-right font-weight-bold text-nowrap">less than</td>
+                        <td class="text-left font-weight-bold text-nowrap">greater than </td>
+                        <td class="text-left font-weight-bold text-nowrap">less than </td>
                     </tr>
                     <tr class="mb-2">
                         <td class="text-left"><input type="number" name="" id="heightFieldGTE" class="form-control" style="width: 80px;
-                            height: 25px;" > m</td>
+                            height: 25px;" > </td>
                         <td class="text-right" id="fovAreaSummary"><input type="number" class="form-control" name="" id="heightFieldLTE" style="width: 80px;
-                            height: 25px;"> m</td>
+                            height: 25px;"> </td>
                     </tr>
                 </table>
             </div>
@@ -152,6 +153,14 @@
         <div class="col-auto d-flex align-items-center">
             <p class="mb-0 mx-1">Flat Surfaces</p>
             <input type="checkbox" class="mx-1" name="flatSurfacesLayer" id="flatSurfacesLayer" onclick="showlayer('flatSurfaceLayer')">
+        </div>
+        <div class="col-auto d-flex align-items-center">
+            <p class="mb-0 mx-1">Buidlings</p>
+            <input type="checkbox" class="mx-1" name="ML_buildingsLayer" id="ML_buildingsLayer" onclick="showlayer('ML_buidlings')">
+        </div>
+        <div class="col-auto d-flex align-items-center">
+            <p class="mb-0 mx-1">Trees</p>
+            <input type="checkbox" class="mx-1" name="TreesLayer" id="TreesLayer" onclick="showlayer('ML_buidlings')">
         </div>
         </div>
     </div>
@@ -189,6 +198,13 @@ $.ajaxSetup({
     headers: { "X-CSRFToken": '{{csrf_token}}' ,'Authorization':"Token {{request.session.key}}"}
 });
 
+
+let redMaterial = new THREE.MeshPhongMaterial({
+			color: 0xff0000,
+            transparent : true,
+            opacity: 0.5,
+			side: THREE.DoubleSide
+		});
 
 var active_id = null;
 
@@ -370,7 +386,7 @@ map.on('load', function () {
 
 
     // // add the DEM source as a terrain layer with exaggerated height
-    map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1.2 });
+    // map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1.2 });
     
     // add a sky layer that will show when the map is highly pitched
     map.addLayer({
@@ -692,16 +708,20 @@ function clearLocationCalulation() {
 
         map.removeSource("obsSource");
     } 
-    if (map.getLayer("custom_layer")) {
+    if (map.getLayer("ML_buidlings")) {
         tb.clear()
-        map.removeLayer("custom_layer");
+        map.removeLayer("ML_buidlings");
         
     }
     caluclateMarker.remove();
     hexalayercheckbox = document.getElementById("hexagonsLayer")
     flatsurfacecheckbox = document.getElementById("flatSurfacesLayer")
+    buildingscheckbox = document.getElementById("ML_buildingsLayer")
+    treescheckbox = document.getElementById("TreesLayer")
     flatsurfacecheckbox.checked = true;
     hexalayercheckbox.checked = true;
+    buildingscheckbox.checked = true;
+    treescheckbox.checked = true;
     active_id = null;
     map.on('click', showMarker);
     $(".calculate").show();
@@ -835,8 +855,12 @@ function createHotspot(){
 
 hexalayercheckbox = document.getElementById("hexagonsLayer")
 flatsurfacecheckbox = document.getElementById("flatSurfacesLayer")
+buildingscheckbox = document.getElementById("ML_buildingsLayer")
+treescheckbox = document.getElementById("TreesLayer")
 flatsurfacecheckbox.checked = true;
 hexalayercheckbox.checked = true;
+buildingscheckbox.checked = true;
+treescheckbox.checked = true;
 
 
 function showlayer(clickedLayer){
@@ -947,10 +971,7 @@ function addFilter(){
 }
 
 
-let redMaterial = new THREE.MeshPhongMaterial({
-			color: 0x660000,
-			side: THREE.DoubleSide
-		});
+
 
 function addBuildings(data, info, height = 1) {
 
@@ -972,38 +993,38 @@ function addBuildings(data, info, height = 1) {
 
 
 function loadBuildings(features){
-    if (map.getLayer("custom_layer")) {
+    if (map.getLayer("ML_buidlings")) {
         tb.clear()
-        map.removeLayer("custom_layer");
+        map.removeLayer("ML_buidlings");
         // tb.removeLayer("custom_layer")
     }
     map.addLayer({
-				id: 'custom_layer',
+				id: 'ML_buidlings',
 				type: 'custom',
 				renderingMode: '3d',
 				onAdd: function (map, mbxContext) {
 
 					//[jscastro] we add a star based on this example https://threejs.org/examples/?q=extrud#webgl_geometry_extrude_shapes
-					const points = [], numPts = 5;
-					for (let i = 0; i < numPts * 2; i++) {
-						const l = i % 2 == 1 ? 10 : 20;
-						const a = i / numPts * Math.PI;
-						points.push(new THREE.Vector2(Math.cos(a) * l, Math.sin(a) * l));
-					}
-					const material1 = new THREE.MeshLambertMaterial({ color: 0xb00000, wireframe: false });
-					const material2 = new THREE.MeshLambertMaterial({ color: 0xff8000, wireframe: false });
-					let star = tb.extrusion({
-						coordinates: points,
-						geometryOptions: { depth: 20, steps: 1, bevelEnabled: true, bevelThickness: 2, bevelSize: 4, bevelSegments: 1 },
-						anchor: 'center',
-						units: 'meters',
-						rotation: { x: 90, y: 0, z: 20 },
-						materials: [material1, material2]
-					});
-					star.addTooltip("A animated extruded star over Columbus Park", true);
-					star.setCoords([-73.97049764067823,40.76466662545835]);
-					star.set({ rotation: {x: 0, y: 0, z: 720}, duration: 20000 })
-					tb.add(star);
+					// const points = [], numPts = 5;
+					// for (let i = 0; i < numPts * 2; i++) {
+					// 	const l = i % 2 == 1 ? 10 : 20;
+					// 	const a = i / numPts * Math.PI;
+					// 	points.push(new THREE.Vector2(Math.cos(a) * l, Math.sin(a) * l));
+					// }
+					// const material1 = new THREE.MeshLambertMaterial({ color: 0xb00000, wireframe: false });
+					// const material2 = new THREE.MeshLambertMaterial({ color: 0xff8000, wireframe: false });
+					// let star = tb.extrusion({
+					// 	coordinates: points,
+					// 	geometryOptions: { depth: 20, steps: 1, bevelEnabled: true, bevelThickness: 2, bevelSize: 4, bevelSegments: 1 },
+					// 	anchor: 'center',
+					// 	units: 'meters',
+					// 	rotation: { x: 90, y: 0, z: 20 },
+					// 	materials: [material1, material2]
+					// });
+					// star.addTooltip("A animated extruded star over Columbus Park", true);
+					// star.setCoords([-73.97049764067823,40.76466662545835]);
+					// star.set({ rotation: {x: 0, y: 0, z: 720}, duration: 20000 })
+					// tb.add(star);
 
 					//[jscastro] we read a geoJson that is filled with 3 real features from the composite source
 					// d3.json('https://raw.githubusercontent.com/jscastro76/threebox/master/examples/geojson/extrusion.geojson').then(function (fc) {

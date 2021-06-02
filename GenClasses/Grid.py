@@ -147,15 +147,16 @@ class hexaGrid():
 
                 total_hexas = len(self.hexas)
                 print(total_hexas)
-                division = math.ceil(total_hexas/4)
+                total_threads = 8
+                division = math.ceil(total_hexas/total_threads)
                 pools=[]
 
-                for p in range(4):
+                for p in range(total_threads):
                         pools.append(threading.Thread(target = self.flat_pool_proces, args=(p*division,(p+1)*division,transformer_4326,transformer_mac,marker)))
                         pools[p].start()
                         
 
-                for p in range(4):
+                for p in range(total_threads):
                         pools[p].join()
                         print('ok')
 
@@ -191,26 +192,26 @@ class hexaGrid():
         
         
         def flat_pool_proces(self,start,end,transformer_4326,transformer_mac,marker):
-                transformer_4326 = Transformer.from_crs("epsg:3857", "epsg:4326")
-                transformer_mac = Transformer.from_crs("epsg:4326","epsg:3857")
+                # transformer_4326 = Transformer.from_crs("epsg:3857", "epsg:4326")
+                # transformer_mac = Transformer.from_crs("epsg:4326","epsg:3857")
                 try:
                         for hexa in self.hexas[start:end]:
                                 i=0 
                                 for flatpoints in hexa.falt_sufrace_points:
                                         flat_Surface = flatSurface(flatpoints,hexa)
                                         flat_Surface.insidePoints = hexa.falt_sufrace_allPoints[i]
-                                        flat_Surface.get_area_flat_surface()
+                                        flat_Surface.get_area_flat_surface(transformer_4326)
                                         # print("area" ,flat_Surface.area )
                                         if flat_Surface.area >= self.CoverageArea:
                                                 fovs = []
                                                 j=0
                                                 for endpoint in flat_Surface.get_sides_mac():
                                                         fovs.append(FOV())
-                                                        fovs[j].create_fov(endpoint  , self.userMarker.get_latlonMac())
+                                                        fovs[j].create_fov(endpoint  , self.userMarker.get_latlonMac(tranformer = transformer_mac))
                                                         j+=1
                                                 fov  = FOV()
                                                 fov.center = True
-                                                fov.create_fov(flat_Surface.center  , self.userMarker.get_latlonMac())
+                                                fov.create_fov(flat_Surface.center  , self.userMarker.get_latlonMac(tranformer = transformer_mac))
                                                 fovs.append(fov)
                                                 print(len(fovs),"fovs created")
                                                 if (fov.height >= 100 and fov.height <=4000) :
@@ -223,7 +224,7 @@ class hexaGrid():
                                                         FS = modelFlatSurface(marker = marker ,wsg48polygon =geos.Polygon(tuple(wsg48polygon.exterior.coords)) ,macpolygon= geos.Polygon(tuple(macpolygon.exterior.coords)) , avgHeight = flat_Surface.modeHeight,area = flat_Surface.area,center = geos.Point(tuple(flat_Surface.center_wsg)[::-1]),distance=distance)
                                                         FS.save()
                                                         for fov in fovs:
-                                                                wsg48polygon = Polygon(tuple([tuple(li[::-1]) for li in fov.get_fov_4326()]))
+                                                                wsg48polygon = Polygon(tuple([tuple(li[::-1]) for li in fov.get_fov_4326(transformer_4326)]))
                                                                 macpolygon = Polygon(tuple([tuple(li[::-1]) for li in fov.view_area]))
                                                                 # startx,starty = transformer_4326.transform(fov.start[0],fov.start[1])
                                                                 F_O_V = modelFOV(flatSurface=FS,wsg48polygon=geos.Polygon(tuple(wsg48polygon.exterior.coords)),macpolygon=geos.Polygon(tuple(macpolygon.exterior.coords)),height=fov.height,sign=fov.sign,start = geos.Point(fov.start[0],fov.start[1]),center = fov.center)
@@ -352,24 +353,11 @@ class hexaGrid():
 
                 if os.path.exists(userRasterPath+f"uneven_{marker.id}.vrt"):
                         os.remove(userRasterPath+f'uneven_{marker.id}.vrt')
-                
-                # f = open(userRasterPath+f'uneven_{marker.id}.vrt',"w")
-                # f.write(f'<OGRVRTDataSource><OGRVRTLayer name="uneven_{marker.id}"><SrcDataSource>{userRasterPath}uneven_{marker.id}.csv</SrcDataSource><GeometryType>wkbPoint</GeometryType><GeometryField encoding="PointFromColumns" x="x" y="y" z="height"/></OGRVRTLayer></OGRVRTDataSource>')
-                # f.close()
-
-
-                # r = gdal.Grid(userRasterPath+f"unevenInt_{marker.id}.tif",userRasterPath+f'uneven_{marker.id}.vrt',outputSRS = "EPSG:3857")
-                # r = None
+        
 
                 dem = gdal.Translate(userRasterPath+f"unevenInt_{marker.id}.tif",userRasterPath+f'uneven_{marker.id}.xyz',outputSRS = "EPSG:3857")
                 dem = None
 
-                # inputFile  = userRasterPath+f"unevenInt_{marker.id}_no.tif"
-                # outputFile  = userRasterPath+f"unevenInt_{marker.id}.tif"
-
-                # process = Popen(['gdaldem','hillshade','-of','PNG',inputFile,userRasterPath+f"unevenInt_{marker.id}.tif"], stdout=PIPE, stderr=PIPE,cwd=workingDir)
-                # stdout, stderr = process.communicate()
-                # print(stdout, stderr)
 
 
 
@@ -379,16 +367,33 @@ class hexaGrid():
                 transformer_4326 = Transformer.from_crs("epsg:3857", "epsg:4326")
                 transformer_mac = Transformer.from_crs("epsg:4326","epsg:3857")
 
+                flatSurfaces = list(modelFlatSurface.objects.filter(marker = marker))
+                total_flatSurfaces = len(flatSurfaces)
+                print(total_flatSurfaces)
+                total_threads = 8
+                division = math.ceil(total_flatSurfaces/total_threads)
+                pools=[]
+                obs = []
 
-                points = modelPoint.objects.all()
+                for p in range(total_threads):
+                        pools.append(threading.Thread(target = self.get_obstruction_process, args=(p*division,(p+1)*division,marker,path,transformer_4326,transformer_mac,obs,flatSurfaces)))
+                        pools[p].start()
+                        
 
-                # ds = gdal.Open(inputfile)
-                # print(ds)
-                # print(ds.GetRasterBand(1).ReadAsArray())
-                # ds=None
-                shapes=[]
+                for p in range(total_threads):
+                        pools[p].join()
+                        print('ok')
+
                 obs = []
                 for fs in modelFlatSurface.objects.filter(marker = marker):
+                        if len(fs.obstructions_set.all()) == 0:
+                                obs.append(fs.id)
+                modelFlatSurface.objects.filter(id__in = obs).delete()
+                modelFOV.objects.filter(center=False).delete()
+
+
+        def get_obstruction_process(self,start,end,marker,path,transformer_4326,transformer_mac,obs,flatSurfaces):
+                for fs in flatSurfaces[start:end]:
                         inputfile = path+f"unevenInt_{marker.id}.tif"
                         fovs = []
                         polys = []
@@ -400,7 +405,7 @@ class hexaGrid():
                                 x,y = fov.start[0],fov.start[1]
                                 print(x,y)
                                 
-                                process = Popen(['gdal_viewshed','-b','1','-md','0','-ox',f'{x}','-oy',f'{y}','-oz','2',inputfile,outputfile], stdout=PIPE, stderr=PIPE,cwd=workingDir)
+                                process = Popen(['gdal_viewshed','-b','1','-md','0','-ox',f'{x}','-oy',f'{y}','-oz','5',inputfile,outputfile], stdout=PIPE, stderr=PIPE,cwd=workingDir)
                                 stdout, stderr = process.communicate()
                                 print(stdout, stderr)
 
@@ -424,6 +429,8 @@ class hexaGrid():
                                                 poly = self.convert_mac_lat(poly,transformer_4326)
                                                 poly = Polygon(poly.coords[0])
                                                 polys.append(poly)
+                        
+                        fov = modelFOV.objects.filter(flatSurface = fs , center = True).first()
                         if len(polys) > 2:
                                 polys2 = []
                                 for p in polys:
@@ -433,21 +440,41 @@ class hexaGrid():
                                 if shapes.geom_type == 'Polygon':
                                         poly = tuple(shapes.exterior.coords)
                                         poly = geos.Polygon(poly)
-                                        obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = poly)
+                                        if poly.intersects(marker.wsg48point):
+                                                clipped = fov.wsg48polygon.intersection(poly)
+                                                if clipped.geom_typeid == 3:
+                                                        obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = clipped)
+                                                if clipped.geom_typeid == 4:
+                                                        for poly in clipped.coords:
+                                                                poly = geos.Polygon(poly)
+                                                                obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = poly)
                                 else:
                                         for s in shapes:
                                                 # if s[1] >= 250: #changes to >=
                                                 poly = tuple(s.exterior.coords)
                                                 poly = geos.Polygon(poly)
-                                                obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = poly )
+                                                if poly.intersects(marker.wsg48point):
+                                                        clipped = fov.wsg48polygon.intersection(poly)
+                                                        if clipped.geom_typeid == 3:
+                                                                obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = clipped)
+                                                        if clipped.geom_typeid == 4:
+                                                                for poly in clipped.coords:
+                                                                        poly = geos.Polygon(poly)
+                                                                        obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = poly)
+
+                                                # obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = poly )
                         elif len(polys) == 1:
                                 poly = geos.Polygon(tuple(polys[0].exterior.coords))
-                                obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = poly )
-                        else:
-                                print(polys)
+                                if poly.intersects(marker.wsg48point):
+                                        clipped = fov.wsg48polygon.intersection(poly)
+                                        if clipped.geom_typeid == 3:
+                                                obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = clipped)
+                                        if clipped.geom_typeid == 4:
+                                                for poly in clipped.coords:
+                                                        poly = geos.Polygon(poly)
+                                                        obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = poly)
+                                # obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = poly )
 
 
                         modelFOV.objects.filter(id__in=fovs).delete()
-
-                modelFlatSurface.objects.filter(id__in=obs).delete()
-                modelFOV.objects.filter(center=False).delete()
+                pass
