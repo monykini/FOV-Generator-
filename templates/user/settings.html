@@ -297,9 +297,13 @@
 	var fontSize =  parseInt('{{ request.session.profile.Font_Size }}') ;
     var fontStyle =  parseInt('{{ request.session.profile.Font_Family }}') ;
     var fam = "Arial";
-    $("#elem").css({
+    $("*").css({
 	    fontSize: fontSize
 	});
+	$("h2").css({
+	    fontSize: fontSize + 8 
+	});
+
 	if(fontStyle == 1){
 	    fam = "fantasy"
 	}else if(fontStyle == 2){
