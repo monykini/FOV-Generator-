@@ -37,4 +37,7 @@ def create_token(sender, instance,created, **kwargs):
     if created:
         obj = Token.objects.get_or_create(user = instance.User)
         path = f"userRasters/{instance.User.username}"
-        os.mkdir(path)
+        if os.path.exists(path):
+                pass
+        else:
+            os.mkdir(path)

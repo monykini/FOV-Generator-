@@ -10,6 +10,13 @@ import mercantile
 from django.contrib.gis import geos
 import rasterio
 import shapely
+from deepforest import main
+import os
+import tempfile
+m = main.deepforest()
+m.use_release()
+
+
 
 _GLOBAL_MIN = np.array([1.0, 1.0, 23.0])
 _GLOBAL_MAX = np.array([1933.0, 2047.0, 1610.0])
@@ -33,7 +40,7 @@ def adjust_contrast_and_normalize_prod(img):
     image = tf.image.resize(image, (448, 448))
     return image
 
-def get_tiles_ML(square_4326,PixelXYToLatLongOSM):
+def get_tiles_ML(square_4326,PixelXYToLatLongOSM,marker):
         tiles = []
         for p in square_4326:
                 mercent = mercantile.tile(p[1],p[0],18)
@@ -59,16 +66,18 @@ def get_tiles_ML(square_4326,PixelXYToLatLongOSM):
         total_tiles_matrix = total_tiles_matrix[::-1]
 
         polygons = []
+        treepolygons = []
         for i in total_tiles_matrix:
             for j in i:
-                polys = get_pred(j[0],j[1],PixelXYToLatLongOSM)
+                polys , treepolys = get_pred(j[0],j[1],PixelXYToLatLongOSM,marker)
                 polygons.extend(polys)
-        
-        return polygons
+                treepolygons.extend(treepolys)
+        print(treepolygons)
+        return polygons , treepolygons
 
 
 
-def get_pred(x,y,PixelXYToLatLongOSM):
+def get_pred(x,y,PixelXYToLatLongOSM,marker):
         img = Image.open(requests.get(f'https://api.mapbox.com/v4/mapbox.satellite/18/{x}/{y}@2x.png?access_token=pk.eyJ1IjoiY29zbW9ib2l5IiwiYSI6ImNrNHN0dmwzZjBwMnkzbHFkM3pvaTBybDQifQ.pfeEvOIWJc60mdHtn8_uAQ', stream=True).raw)
         # im1 = img.save(f"{x},{y}.png")
         img = asarray(img)
@@ -94,7 +103,26 @@ def get_pred(x,y,PixelXYToLatLongOSM):
         # print(polygons)
         polygons = get_polygons(polygons,x,y,PixelXYToLatLongOSM)
 
-        return polygons
+        userRasterPath = f"userRasters/{marker.user.username}/"
+
+        if os.path.exists(userRasterPath+f"{x},{y}.png"):
+                os.remove(userRasterPath+f"{x},{y}.png")
+
+
+
+        img = Image.open(requests.get(f'https://api.mapbox.com/v4/mapbox.satellite/18/{x}/{y}@2x.png?access_token=pk.eyJ1IjoiY29zbW9ib2l5IiwiYSI6ImNrNHN0dmwzZjBwMnkzbHFkM3pvaTBybDQifQ.pfeEvOIWJc60mdHtn8_uAQ', stream=True).raw)
+        img.save(userRasterPath+f"{x},{y}.png")
+
+        predicted_boxes = m.predict_tile(raster_path = userRasterPath+f"{x},{y}.png" ,patch_size = 512,patch_overlap = 0.5,return_plot = False)
+        Treepolygons = [] 
+        for index, row in predicted_boxes.iterrows():
+                bbox = (row['xmin'] , row['ymin'] , row['xmax']  , row['ymax'])
+                Treepolygon = shapely.geometry.box(*bbox, ccw=True)
+                Treepolygons.append(Treepolygon)
+
+        Treepolygons = get_polygons(Treepolygons,x,y,PixelXYToLatLongOSM)
+
+        return polygons, Treepolygons
 
 
 def get_polygons(polygons,x,y,PixelXYToLatLongOSM):

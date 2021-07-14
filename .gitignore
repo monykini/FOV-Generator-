@@ -10,5 +10,9 @@ userRasters
 userRasters/
 /userRasters/
 /userRasters
+MLData
+MLData/
+/MLData/
+/MLData
 */migrations
 FOV/settings.py

@@ -46,10 +46,10 @@ z-index: 99;
 }
 .overlay-summary{
     position: fixed;
-    top: 15rem;
+    top: 28rem;
+    min-height: 50vh;
     right: 1vw;
     width: 280px;
-    display: None;
 }
 .overlay-layers{
     position: fixed;
@@ -64,10 +64,10 @@ z-index: 99;
 }
 .overlay-filters{
     position: fixed;
-    top: 35rem;
+    top: 28rem;
     min-height: 50vh;
     right: 1vw;
-    width: 270px;
+    width: 280px;
     display: None;
     
 }

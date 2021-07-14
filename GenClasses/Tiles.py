@@ -2,7 +2,7 @@ import django
 
 django.setup()
 
-from generator.models import modelPoint,modelUserMarker,buildingData,MLbuildingData
+from generator.models import modelPoint,modelUserMarker,buildingData,MLbuildingData,MLtreesData
 from django.contrib.gis.gdal import GDALRaster
 from django.contrib.gis import geos
 
@@ -94,9 +94,12 @@ class tileGatherer():
 
         def get_buildings_ML(self,square_4326):
                 marker = modelUserMarker.objects.get(id=  self.markerID)
-                polygons = buildingML.get_tiles_ML(square_4326,self.converter.PixelXYToLatLongOSM)
+                polygons, treepolygons = buildingML.get_tiles_ML(square_4326,self.converter.PixelXYToLatLongOSM,marker)
                 for p in polygons:
                         MLbuildingData.objects.create(marker=marker,height = random.randint(3,5) , geom = p)
+                
+                for p in treepolygons:
+                        MLtreesData.objects.create(marker=marker,height = random.randint(3,4) , geom = p)
 
 
 

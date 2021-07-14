@@ -66,6 +66,7 @@ class modelFOV(models.Model):
     sign=models.IntegerField(default=0)
     start = models.PointField(null = True , default=None)
     center = models.BooleanField(default=False)
+    visibility = models.FloatField(default=0)
 
 class modelHexas(models.Model):
     marker = models.ForeignKey(modelUserMarker,on_delete=models.CASCADE)
@@ -82,6 +83,11 @@ class obstructions(models.Model):
     height = models.FloatField(null = True)
 
 class MLbuildingData(models.Model):
+    marker = models.ForeignKey(modelUserMarker,on_delete=models.CASCADE)
+    height = models.FloatField()
+    geom = models.PolygonField(srid=4326)
+
+class MLtreesData(models.Model):
     marker = models.ForeignKey(modelUserMarker,on_delete=models.CASCADE)
     height = models.FloatField()
     geom = models.PolygonField(srid=4326)

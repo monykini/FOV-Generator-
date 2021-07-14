@@ -122,9 +122,9 @@ class viewLocationRetreive(generics.RetrieveAPIView):
 
     def retrieve(self, request,id=None):
         fucade = FOV_fucade() 
-        data2 , hexas , markerID ,buildings = fucade.view_fov(request,id)
+        data2 , hexas , markerID ,buildings , trees = fucade.view_fov(request,id)
         marker = modelUserMarker.objects.get(id=id)
-        return Response({'flatSurfaces':data2 , 'Hexas':hexas ,"id":markerID , "coordinates":list(marker.wsg48point) , "name":marker.name , 'buildings':buildings})
+        return Response({'flatSurfaces':data2 , 'Hexas':hexas ,"id":markerID , "coordinates":list(marker.wsg48point) , "name":marker.name , 'buildings':buildings , 'trees':trees})
 
 class ListUserLocations(generics.ListAPIView):
 

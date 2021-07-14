@@ -91,20 +91,16 @@
             <div class="col-lg-12 ">
                 <table class="" id='flatSurfaceSumary'>
                     <tr class="mb-2">
-                        <td class="text-left font-weight-bold text-nowrap"># of Points</td>
+                        <td class="text-left font-weight-bold text-nowrap">Visibility</td>
                         <td class="text-right" id="pointsSummary">0</td>
                     </tr>
                     <tr class="mb-2">
-                        <td class="text-left font-weight-bold text-nowrap">Fov Area</td>
-                        <td class="text-right" id="fovAreaSummary">0 m2</td>
+                        <td class="text-left font-weight-bold text-nowrap">Distance</td>
+                        <td class="text-right" id="fovAreaSummary">0 m</td>
                     </tr>
                     <tr class="mb-2">
-                        <td class="text-left font-weight-bold text-nowrap">Visibility</td>
-                        <td class="text-right">100%</td>
-                    </tr>
-                    <tr class="mb-2">
-                        <td class="text-left font-weight-bold text-nowrap">Flat surface area</td>
-                        <td class="text-right" id="flatSurfaceSummary">0 m2</td>
+                        <td class="text-left font-weight-bold text-nowrap">Height</td>
+                        <td class="text-right" id="flatSurfaceSummary">0 m</td>
                     </tr>
                 </table>
             </div>
@@ -141,6 +137,20 @@
                             height: 25px;"> </td>
                     </tr>
                 </table>
+                <hr>
+                <table class="" id='flatSurfaceSumary'>
+                    <h6 class="mx-auto text-nowrap font-weight-bold" > Visibility </h6>
+                    <tr class="mb-2">
+                        <td class="text-left font-weight-bold text-nowrap">greater than </td>
+                        <td class="text-left font-weight-bold text-nowrap">less than </td>
+                    </tr>
+                    <tr class="mb-2">
+                        <td class="text-left"><input type="number" name="" id="visibilityFieldGTE" class="form-control" style="width: 80px;
+                            height: 25px;" > </td>
+                        <td class="text-right"><input type="number" class="form-control" name="" id="visibilityFieldLTE" style="width: 80px;
+                            height: 25px;"> </td>
+                    </tr>
+                </table>
             </div>
         </div>
     </div>
@@ -155,13 +165,13 @@
             <input type="checkbox" class="mx-1" name="flatSurfacesLayer" id="flatSurfacesLayer" onclick="showlayer('flatSurfaceLayer')">
         </div>
         <div class="col-auto d-flex align-items-center">
-            <p class="mb-0 mx-1">Buidlings</p>
+            <p class="mb-0 mx-1">3Ds</p>
             <input type="checkbox" class="mx-1" name="ML_buildingsLayer" id="ML_buildingsLayer" onclick="showlayer('ML_buidlings')">
         </div>
-        <div class="col-auto d-flex align-items-center">
+        <!-- <div class="col-auto d-flex align-items-center">
             <p class="mb-0 mx-1">Trees</p>
-            <input type="checkbox" class="mx-1" name="TreesLayer" id="TreesLayer" onclick="showlayer('ML_buidlings')">
-        </div>
+            <input type="checkbox" class="mx-1" name="TreesLayer" id="TreesLayer" onclick="showlayer('ML_trees')">
+        </div> -->
         </div>
     </div>
     <div class="container overlay-hotspot-info ">
@@ -205,6 +215,13 @@ let redMaterial = new THREE.MeshPhongMaterial({
             opacity: 0.5,
 			side: THREE.DoubleSide
 		});
+
+let greenMaterial = new THREE.MeshPhongMaterial({
+    color: 0x00FF00,
+    transparent : true,
+    opacity: 0.5,
+    side: THREE.DoubleSide
+    });
 
 var active_id = null;
 
@@ -303,7 +320,9 @@ function tile_request(){
             create_hexas(JSON.stringify(result.Hexas).replace('\'','"'))
             hide('areaForm')
             buildings = result.buildings
+            trees = result.trees
             loadBuildings(buildings.features)
+            loadTrees(trees.features)
             alertify.success('Area calculated')
             if (caluclateMarker){
                 caluclateMarker.remove();
@@ -451,7 +470,9 @@ map.on('load', function () {
                     create_square(JSON.stringify(data.flatSurfaces).replace('\'','"'))
                     create_hexas(JSON.stringify(data.Hexas).replace('\'','"'))
                     buildings = data.buildings
+                    trees = data.trees
                     loadBuildings(buildings.features)
+                    loadTrees(trees.features)
                     hide('areaForm')
                     if (caluclateMarker){
                         caluclateMarker.remove();
@@ -531,7 +552,7 @@ function create_hexas(data){
 
         map.removeSource("HexaSource");
     }
-
+    data1 = JSON.parse(data)
     map.addSource('HexaSource', {
     'type': 'geojson',
     'data':JSON.parse(data)
@@ -640,10 +661,10 @@ function create_square(data){
         // }
 
     });
-
-    $('#fovAreaSummary').text((fovData.properties.fovArea).toFixed(2)+ 'm2');
-    $('#pointsSummary').text(fovData.properties.numberOfPoints );
-    $('#flatSurfaceSummary').text((fovData.properties.flatSurfaceArea).toFixed(2)+ 'm2');
+    console.log(e)
+    $('#fovAreaSummary').text((e.features[0].properties.distance).toFixed(2)+ 'm');
+    $('#pointsSummary').text((e.features[0].properties.visibility).toFixed(2));
+    $('#flatSurfaceSummary').text((e.features[0].properties.height).toFixed(2)+ 'm');
 
     });
 
@@ -713,15 +734,20 @@ function clearLocationCalulation() {
         map.removeLayer("ML_buidlings");
         
     }
+    if (map.getLayer("ML_trees")) {
+        tb.clear()
+        map.removeLayer("ML_trees");
+        
+    }
     caluclateMarker.remove();
     hexalayercheckbox = document.getElementById("hexagonsLayer")
     flatsurfacecheckbox = document.getElementById("flatSurfacesLayer")
     buildingscheckbox = document.getElementById("ML_buildingsLayer")
-    treescheckbox = document.getElementById("TreesLayer")
+    // treescheckbox = document.getElementById("TreesLayer")
     flatsurfacecheckbox.checked = true;
     hexalayercheckbox.checked = true;
     buildingscheckbox.checked = true;
-    treescheckbox.checked = true;
+    // treescheckbox.checked = true;
     active_id = null;
     map.on('click', showMarker);
     $(".calculate").show();
@@ -856,27 +882,56 @@ function createHotspot(){
 hexalayercheckbox = document.getElementById("hexagonsLayer")
 flatsurfacecheckbox = document.getElementById("flatSurfacesLayer")
 buildingscheckbox = document.getElementById("ML_buildingsLayer")
-treescheckbox = document.getElementById("TreesLayer")
+// treescheckbox = document.getElementById("TreesLayer")
 flatsurfacecheckbox.checked = true;
 hexalayercheckbox.checked = true;
 buildingscheckbox.checked = true;
-treescheckbox.checked = true;
+// treescheckbox.checked = true;
 
 
 function showlayer(clickedLayer){
-    if (event.srcElement.checked == false) {
+    if (clickedLayer === "ML_buidlings"){
+        if (event.srcElement.checked == false) {
         map.setLayoutProperty(
         clickedLayer,
         'visibility',
         'none'
         );
-    } else {
+        map.setLayoutProperty(
+        "ML_trees",
+        'visibility',
+        'none'
+        );
+        } else {
+            map.setLayoutProperty(
+            clickedLayer,
+            'visibility',
+            'visible'
+            );
+            map.setLayoutProperty(
+            "ML_trees",
+            'visibility',
+            'visible'
+            );
+        }
+    }
+    else{
+        if (event.srcElement.checked == false) {
         map.setLayoutProperty(
         clickedLayer,
         'visibility',
-        'visible'
+        'none'
         );
+        } else {
+            map.setLayoutProperty(
+            clickedLayer,
+            'visibility',
+            'visible'
+            );
+        }
     }
+    
+
 }
 
 var fontSize =  parseInt('{{ request.session.profile.Font_Size }}') ;
@@ -944,16 +999,22 @@ document.getElementById("distanceFieldLTE").addEventListener("input", addFilter)
 document.getElementById("distanceFieldGTE").addEventListener("input", addFilter);
 document.getElementById("heightFieldLTE").addEventListener("input", addFilter);
 document.getElementById("heightFieldGTE").addEventListener("input", addFilter);
+document.getElementById("visibilityFieldLTE").addEventListener("input", addFilter);
+document.getElementById("visibilityFieldGTE").addEventListener("input", addFilter);
 
 function addFilter(){
     element1=document.getElementById("distanceFieldLTE")
     element2=document.getElementById("distanceFieldGTE")
     element3=document.getElementById("heightFieldLTE")
     element4=document.getElementById("heightFieldGTE")
+    element5=document.getElementById("visibilityFieldLTE")
+    element6=document.getElementById("visibilityFieldGTE")
     value1 = element1.value
     value2 = element2.value
     value3 = element3.value
     value4 = element4.value
+    value5 = element5.value
+    value6 = element6.value
     filter = ["all",]
     if( value1 > 100){
         filter.push(['<=', ['get', 'distance'],  parseInt(value1)]);
@@ -967,6 +1028,15 @@ function addFilter(){
     if( value4 > 0){
         filter.push(['>=', ['get', 'height'], parseInt(value4)]);
     }
+    if( value5 <= 1 && value5 > 0){
+        filter.push(['<=', ['get', 'visibility'], parseFloat(value5)]);
+    }
+    console.log(value5)
+    console.log(value6)
+    if( value6 <= 1 && value6 > 0){
+        filter.push(['>=', ['get', 'visibility'], parseFloat(value6)]);
+    }
+    console.log(filter)
     map.setFilter('flatSurfaceLayer',filter)
 }
 
@@ -989,6 +1059,48 @@ function addBuildings(data, info, height = 1) {
         tb.add(extrusion);
 
     });
+}
+
+
+function addTrees(data, info, height = 1) {
+
+    data.forEach((b) => {
+        let center = b.properties.center;
+        let s = tb.projectedUnitsPerMeter(center[1]);
+
+        let extrusion = tb.extrusion({
+            coordinates: b.geometry.coordinates,
+            geometryOptions: { curveSegments: 1, bevelEnabled: false, depth: b.layer.paint["fill-extrusion-height"] * s },
+            materials: greenMaterial
+        });
+        // extrusion.addTooltip(b.properties.tooltip, true);
+        extrusion.setCoords([center[0], center[1], 0]);
+        tb.add(extrusion);
+
+    });
+}
+
+
+function loadTrees(features){
+    if (map.getLayer("ML_trees")) {
+        tb.clear()
+        map.removeLayer("ML_trees");
+        // tb.removeLayer("custom_layer")
+    }
+
+    map.addLayer({
+            id: 'ML_trees',
+            type: 'custom',
+            renderingMode: '3d',
+            onAdd: function (map, mbxContext) {	
+						addTrees(features);
+            },
+
+            render: function (gl, matrix) {
+                tb.update();
+            }
+        });
+
 }
 
 

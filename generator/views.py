@@ -29,10 +29,10 @@ def genrator(request,hotspotID=None):
         latlon = json.loads(request.POST.get('lonlat',[0,0]))
         area = request.POST.get('area',None)
         fucade = FOV_fucade() 
-        data2 , hexas , markerID , buildings = fucade.create_FOV(request,latlon,float(area))
+        data2 , hexas , markerID , buildings , trees = fucade.create_FOV(request,latlon,float(area))
         t2 = time.perf_counter()
         print(f"{t2-t1} , seconds end")
-        return JsonResponse({'flatSurfaces':data2 , 'Hexas':hexas , "id":markerID , "buildings":buildings })
+        return JsonResponse({'flatSurfaces':data2 , 'Hexas':hexas , "id":markerID , "buildings":buildings ,"trees":trees})
     if hotspotID == None:
         return render(request,'map/map.html')
     else:
@@ -49,10 +49,10 @@ def genratorLocation(request,locationID=None):
         latlon = json.loads(request.POST.get('lonlat',[0,0]))
         area = request.POST.get('area',None)
         fucade = FOV_fucade() 
-        data2 , hexas , markerID , buildings = fucade.create_FOV(request,latlon,float(area))
+        data2 , hexas , markerID , buildings ,trees = fucade.create_FOV(request,latlon,float(area))
         t2 = time.perf_counter()
         print(f"{t2-t1} , seconds end")
-        return JsonResponse({'flatSurfaces':data2 , 'Hexas':hexas , "id":markerID ,"buildings":buildings})
+        return JsonResponse({'flatSurfaces':data2 , 'Hexas':hexas , "id":markerID ,"buildings":buildings ,"trees":trees})
 
     if locationID == None:
         return render(request,'map/map.html')

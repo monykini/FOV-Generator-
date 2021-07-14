@@ -44,11 +44,13 @@ class FOV_fucade():
         for FS in flat_surfaces:
             FovGeojson={"type": "FeatureCollection","features": [],"properties":""}
             fov = models.modelFOV.objects.filter(flatSurface =FS)
+            visibility=0
             for f in fov:
+                visibility = f.visibility
                 numberOfPoints = models.modelPoint.objects.filter(wsg48Point__intersects = f.wsg48polygon).count()
                 fovArea = f.macpolygon.area
                 flatSurfaceArea = FS.area
-                fovProperties = {'numberOfPoints': numberOfPoints,'fovArea':fovArea,'flatSurfaceArea':flatSurfaceArea , "id":FS.id , "elevation":FS.avgHeight}
+                fovProperties = {'numberOfPoints': numberOfPoints,'fovArea':fovArea,'flatSurfaceArea':flatSurfaceArea , "id":FS.id , "elevation":FS.avgHeight }
                 FovGeojson["features"].append({'type': 'Feature',"properties":"",'geometry': json.loads(f.wsg48polygon.geojson)})
                 FovGeojson["properties"] = fovProperties
             
@@ -60,7 +62,7 @@ class FOV_fucade():
             obs = json.dumps(obsGeojson)
             properties = json.dumps(FovGeojson)
             geojson = json.loads(FS.wsg48polygon.geojson)
-            geojson = {'type': 'Feature','geometry': geojson,"properties":{'fov':properties,'obs':obs,'distance':FS.distance,'height':FS.avgHeight}}
+            geojson = {'type': 'Feature','geometry': geojson,"properties":{'fov':properties,'obs':obs,'distance':FS.distance,'height':FS.avgHeight,'visibility':visibility}}
             flatSurfaceGeojson["features"].append(geojson)
         
         hexagons = {"type": "FeatureCollection","features": []}
@@ -77,9 +79,10 @@ class FOV_fucade():
         
             
         buildings = self.buildingsGeoJson(marker)
+        trees = self.treesGeoJson(marker)
 
 
-        return flatSurfaceGeojson , hexagons , marker.id , buildings
+        return flatSurfaceGeojson , hexagons , marker.id , buildings , trees
 
 
     def view_fov(self,request2,id,*args,**kwargs):
@@ -92,7 +95,9 @@ class FOV_fucade():
         for FS in flat_surfaces:
             FovGeojson={"type": "FeatureCollection","features": [],"properties":""}
             fov = models.modelFOV.objects.filter(flatSurface =FS)
+            visibility=0
             for f in fov:
+                visibility = f.visibility
                 numberOfPoints = models.modelPoint.objects.filter(wsg48Point__intersects = f.wsg48polygon).count()
                 fovArea = f.macpolygon.area
                 flatSurfaceArea = FS.area
@@ -108,7 +113,7 @@ class FOV_fucade():
             obs = json.dumps(obsGeojson)
             properties = json.dumps(FovGeojson)
             geojson = json.loads(FS.wsg48polygon.geojson)
-            geojson = {'type': 'Feature','geometry': geojson,"properties":{'fov':properties,'obs':obs,'distance':FS.distance,'height':FS.avgHeight}}
+            geojson = {'type': 'Feature','geometry': geojson,"properties":{'fov':properties,'obs':obs,'distance':FS.distance,'height':FS.avgHeight,'visibility':visibility}}
             flatSurfaceGeojson["features"].append(geojson)
         
         hexagons = {"type": "FeatureCollection","features": []}
@@ -120,8 +125,10 @@ class FOV_fucade():
 
         # models.modelUserMarker.objects.filter(user= request2.user,save_model=False).exclude(id=marker.id).delete()
         buildings = self.buildingsGeoJson(marker)
+        trees = self.treesGeoJson(marker)
 
-        return flatSurfaceGeojson , hexagons , marker.id , buildings
+
+        return flatSurfaceGeojson , hexagons , marker.id , buildings , trees
     
 
 
@@ -148,6 +155,37 @@ class FOV_fucade():
 			}
 
             layer = {"id":"3d-buildings" , "type":"fill-extrusion" ,"source": "composite" ,"source-layer": "buildings" , "minzoom":12,"filter":["==","extrude","true"],"paint":{"fill-extrusion-color":{"r":0.5647058823529412 , "g":0.9333333333333333 , "b":0.5647058823529412 , "a":0.5},"fill-extrusion-height": height,"fill-extrusion-base":0,"fill-extrusion-opacity":0.9}}
+                        
+            geojson['properties'] = properties
+            geojson['layer'] = layer
+
+            hexagons["features"].append(geojson)
+
+        return hexagons
+
+
+
+    def treesGeoJson(self,marker):
+        hexagons = {"type": "FeatureCollection","features": []}
+        for build in models.MLtreesData.objects.filter(geom__intersects = marker.wsg48polygon , marker=marker ):
+            height = random.randint(3,4)
+            geojson = json.loads(build.geom.geojson)
+            geojson = {'type': 'Feature',"properties":"",'geometry': geojson,"id":build.id ,"source": "composite", "sourceLayer": "tree","state": {"hover": True,"select": True},"tooltip": None,"label": None}
+            center = build.geom.centroid
+            properties = {
+				"extrude": "true",
+				"iso_3166_1": "US",
+				"underground": "false",
+				"height": height,
+				"type": "building",
+				"min_height": 0,
+				"iso_3166_2": "US-NY",
+				"uuid": "802C4B41-D2F4-4A51-B2F7-18894CF2C6FE",
+				"center": [ center[0], center[1] ],
+				"tooltip": "The Louis J. Lefkowitz - State Office Building"
+			}
+
+            layer = {"id":"3d-trees" , "type":"fill-extrusion" ,"source": "composite" ,"source-layer": "trees" , "minzoom":12,"filter":["==","extrude","true"],"paint":{"fill-extrusion-color":{"r":0.5647058823529412 , "g":0.9333333333333333 , "b":0.5647058823529412 , "a":0.5},"fill-extrusion-height": height,"fill-extrusion-base":0,"fill-extrusion-opacity":0.9}}
                         
             geojson['properties'] = properties
             geojson['layer'] = layer

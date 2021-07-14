@@ -431,6 +431,7 @@ class hexaGrid():
                                                 polys.append(poly)
                         
                         fov = modelFOV.objects.filter(flatSurface = fs , center = True).first()
+                        area = 0
                         if len(polys) > 2:
                                 polys2 = []
                                 for p in polys:
@@ -442,6 +443,7 @@ class hexaGrid():
                                         poly = geos.Polygon(poly)
                                         if poly.intersects(marker.wsg48point):
                                                 clipped = fov.wsg48polygon.intersection(poly)
+                                                area += clipped.area
                                                 if clipped.geom_typeid == 3:
                                                         obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = clipped)
                                                 if clipped.geom_typeid == 4:
@@ -455,6 +457,7 @@ class hexaGrid():
                                                 poly = geos.Polygon(poly)
                                                 if poly.intersects(marker.wsg48point):
                                                         clipped = fov.wsg48polygon.intersection(poly)
+                                                        area += clipped.area
                                                         if clipped.geom_typeid == 3:
                                                                 obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = clipped)
                                                         if clipped.geom_typeid == 4:
@@ -467,6 +470,7 @@ class hexaGrid():
                                 poly = geos.Polygon(tuple(polys[0].exterior.coords))
                                 if poly.intersects(marker.wsg48point):
                                         clipped = fov.wsg48polygon.intersection(poly)
+                                        area += clipped.area
                                         if clipped.geom_typeid == 3:
                                                 obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = clipped)
                                         if clipped.geom_typeid == 4:
@@ -475,6 +479,7 @@ class hexaGrid():
                                                         obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = poly)
                                 # obstructions.objects.create(flatSurface  = fs ,wsg48Polygon = poly )
 
-
+                        visibility = area/fov.wsg48polygon.area
+                        fov.visibility = visibility
+                        fov.save()
                         modelFOV.objects.filter(id__in=fovs).delete()
-                pass
